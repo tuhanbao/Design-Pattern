@@ -1,0 +1,94 @@
+简单工厂并非23种设计模式原著中的一种，但是关于设计模式的讨论会经常提及这个模式。
+
+
+### 1. 原始场景和代码
+类A需要获取一个正方形。
+
+那么我们可以这样写：
+```
+public class A {
+    public void test() {
+        Square square = new Square();
+        // ...
+    }
+}
+
+public class Square {
+    // ...
+}
+```
+
+### 2. 演变过程
+**有很多个A或未来可能出现很多个A都依赖Square的创建，而且创建Square的代码的逻辑可能会变化，比如new完之后，需要做一些初始化操作。**
+
+避免创建Square的逻辑变动影响到大量的A修改，选择ACB模式（满足情形4而且不满足情形3），代码变为如下：
+```
+public class A {
+    public void test() {
+        Square square = SquareFactory.createSquare();
+        // ...
+    }
+}
+
+public class SquareFactory {
+    public static Square createSquare() {
+        Square square = new Square();
+        // ...
+        return square;
+    }
+}
+```
+
+**Square可能有一天改为圆形Circle**
+
+
+
+使用BA模式（满足情形1，2和3），将这些可能替代Square的对象一起抽象为一个更高层的接口：
+```
+public class A {
+    public void test() {
+        Shape shape = ShapeFactory.createShape();
+        // ...
+    }
+}
+
+public class ShapeFactory {
+    public static Shape createShape() {
+        return new Square();
+    }
+}
+
+public class Square implements Shape {
+    // ...
+}
+```
+
+实际代码中，直接new的代码随处可见，为什么不给他们都封装一个Factory。
+```
+String s = "tuhanbao"; // why not StringFactory.createString("tuhanbao")
+List<String> list = new ArrayList<>(); // why not ListFactory.createList()
+Map<String, String> map = new HashMap<>(); // why not MapFactory.createMap()
+```
+
+本质原因是你所创建的对象，有多种实现，未来有一天会变。而我们依赖的String, ArrayList, HashMap基本不会变，即使变也是根据具体使用的地方单独变化。
+
+
+### 3. 常见的一些错误理解
+1. 工厂模式的本质是将对象的创建封装为一个公共方法，可以很多人共用。
+答案：错。
+封装公共方法确实是简单工厂模式的一个作用，但不是其本质。如果仅仅是封装公共方法，也完全可以把这段逻辑放在Square的构造方法中。
+> 有人说那这样会把Square的构造方法逻辑变得很复杂。逻辑复杂完全可以通过再拆解子函数轻易解决，把一个对象的**公共初始化逻辑**放在构造方法中是完全合理的。
+
+工厂模式的本质是Square会有其他类似实现，比如Circle，Rectangular。即使A只有一个，我们无需抽取公共方法，我们会发现我们依然会把代码变成最终代码的样子（由于不满足场景3，只能使用ACB模式）
+
+
+
+### 4. 思路扩展
+实际代码中，直接new的代码随处可见，为什么不给他们都封装一个Factory。
+```
+String s = "tuhanbao"; // why not StringFactory.createString("tuhanbao")
+List<String> list = new ArrayList<>(); // why not ListFactory.createList()
+```
+
+- String类的创建逻辑不可能变化，而且未来也不太可能出现另外一种实现代替String。即B不会变化，无需修改。
+- ArrayList确实有可能换成LinkedList，而且使用ArrayList的地方也很多，但是每个使用ArrayList的地方都是单独的逻辑，不会出现大家一起同时修改的情况。可以理解为只有一个A，使用ACB模式后并不能节省工作量。
