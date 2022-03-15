@@ -1,0 +1,478 @@
+上一章提到过if else的所有处理策略，似乎if else的逻辑永远无法消灭，只能转移，要么到上游、下游，要么转移到map中。
+确实如此，但是现实中经常会出现一些伪if else。之所以称为伪if else，是因为他们是可以完全消灭的。比如：
+
+```
+    // type的取值范围为1到3
+    public int test(int type) {
+        if (type == 1) {
+            return 1;
+        } else if (type == 2) {
+            return 2;
+        } else {
+            return 3;
+        }
+    }
+```
+// 因为type的取值范围是1~3，所以这段代码完全可以改成这样：
+```
+    public int test(int type) {
+        return type;
+    }
+```
+看起来很傻，貌似不会有人写出这种代码，这个函数压根都不应该存在。可是实际上我们绝大多数人都有犯过这种错误：
+```
+public class A {
+
+    public List<User> test(String type) {
+        if ("admin".equals(type)) {
+            return selectAdminUser();
+        } else if ("audit".equals(type)){
+            return selectAuditUser();
+        } else {
+            return selectNormalUser();
+        }
+    }
+
+    private List<User> selectAdminUser() {
+        String sql = "select * from user where type = 1";
+        return excuteSql(sql);
+    }
+    private List<User> selectAuditUser() {
+        String sql = "select * from user where type = 2";
+        return excuteSql(sql);
+    }
+
+    private List<User> selectNormalUser() {
+        String sql = "select * from user where type = 0";
+        return excuteSql(sql);
+    }
+}
+```
+这个例子和上面的“愚蠢代码”并没有什么本质区别，他只是多了一层映射关系，让其中的“愚蠢逻辑”看起来要隐蔽很多。我们完全可以和上面一样将所有的if else合并起来，比如将方法的传参改成一个枚举：
+```
+public enum RoleType {
+    ADMIN(1), AUDIT(2), NORMAL(3);
+
+    public int value;
+
+    private RoleType(int value) {
+        this.value = value;
+    }
+}
+
+public class A {
+
+    public List<User> test(RoleType type) {
+        return selectUser(type.value);
+    }
+
+    private List<User> selectUser(int type) {
+        String sql = "select * from user where type = " + type;
+        return excuteSql(sql);
+    }
+
+}
+如果方法传参必须保持原样，那么我们可以加一个map映射即可：
+```
+public class B {
+
+    private static Map<String, Integer> map = new HashMap<>();
+    
+    static {
+        map.put("admin", 1);
+        map.put("audit", 2);
+        map.put("normal", 0);
+    }
+
+    public List<User> test(String type) {
+        return selectUser(map.get(type));
+    }
+
+    private List<User> selectUser(int type) {
+        String sql = "select * from user where type = " + type;
+        return excuteSql(sql);
+    }
+}
+```
+有人会说这样不还是没有消灭if else吗，还不是和之前一样转移到了hash表中。确实如此，map本质上就是if else的逻辑处理，但和直接转移到hash表中不同的是，这里再增加type，只需要修改map的映射内容，而不必增加一个handler或method（参考2.5 依赖关系的结构中2.3小节）。
+这些伪if else的分支实质上是同样的东西，我们要做的是将他们识别出来。
+
+识别这种伪if else的方式依靠的正是抽象：函数selectUser(int type)和selectAdminUser、selectAuditUser、selectNormalUser相比，只是剥离了type的个性，保留了他们的共性，而这种**个性**上移到了调用方的传参之中。
+还有2.1开闭原则中的代码片段2.1.1中的两个函数，稍微加以抽象也是一个东西。所以，**即使是普通的函数，也极能体现一个程序员的抽象能力**。
+
+> 实际工作中，有些人写的代码总感觉重复率高，不够优雅，不易维护，而有些优秀的程序员的代码则干净利落。其实本质上是因为对设计的理解已经出现了高低差别。 我见过很多优秀的程序员，从未看过设计模式和设计原则，但是他们早已在骨子里认同了这些理念，只是不自知而已。
+>
+> 我从不相信一个优秀的架构师写的代码很烂这种论调。可能他没怎么写过代码，但是一个优秀的架构师，只要他去写，一定能写的很好。这个道理反过来也成立，一个代码写的很好的程序员，我相信他一定可以成为一个优秀的架构师，他当前缺少的只是一些阅历、经验或机会而已。
+
+
+而这种将多个雷同函数抽象为一个公共函数的过程，我将其称之为“参数化”，而这个过程的逆操作叫做“反参数化”。
+参数化的典型例子就是上面伪if else的合并：
+```
+private List<User> selectAdminUser() {
+    String sql = "select * from user where type = 1";
+    return excuteSql(sql);
+}
+private List<User> selectAuditUser() {
+    String sql = "select * from user where type = 2";
+    return excuteSql(sql);
+}
+
+private List<User> selectNormalUser() {
+    String sql = "select * from user where type = 3";
+    return excuteSql(sql);
+}
+
+// 合并为：
+private List<User> selectUser(int type) {
+    String sql = "select * from user where type = " + value;
+    return excuteSql(sql);
+}
+```
+反参数化的典型例子就是if else逻辑转移到上游调用方：
+```
+public class A {
+    public void test(int type) {
+        if (type == 1) {
+            // code block 1
+        } else if (type == 2) {
+            // code block 2;
+        } else {
+            // code block 3
+        }
+    }
+}
+// 分解为：
+```
+public class A {
+    public void test1() {
+        // code block 1
+    }
+    
+    public void test2() {
+        // code block 1
+    }
+    
+    public void test3() {
+        // code block 1
+    }
+}
+```
+
+如果细心一些，我们会发现，将上面参数化的过程逆向操作一遍，其实就是反参数化；将反参数化的过程逆向操作一遍则是参数化。
+理论上讲，任何两个不同的函数，都可以通过参数化合并成一个函数；
+反之，任何一个带有参数的函数，都可以将其分解成若干个（无数个）去掉该参数的函数。
+
+比如，我非要将HashMap的get和put函数合并：
+```
+public V get(Object key) {
+    Node<K,V> e;
+    return (e = getNode(hash(key), key)) == null ? null : e.value;
+}
+
+public V put(K key, V value) {
+    return putVal(hash(key), key, value, false, true);
+}
+
+// 合并为：
+public V getOrPut(boolean isGet, Object key, K key1, V value) {
+    if (isGet) {
+	    Node<K,V> e;
+        return (e = getNode(hash(key), key)) == null ? null : e.value;
+	} else {
+	    return putVal(hash(key1), key1, value, false, true);
+	}
+}
+```
+然后我又非要把ArrayList的get函数反参数化，一个函数可能要变成无数个了：
+```
+public E get(int index) {
+    rangeCheck(index);
+    return elementData(index);
+}
+改为：
+public V get0() {
+    rangeCheck(0);
+    return elementData(0);
+}
+
+public V get1() {
+    rangeCheck(1);
+    return elementData(1);
+}
+
+// 还有无数个get函数
+```
+
+
+#### 1. 参数化
+
+我们知道，两段完全相同的代码是很容易共用的，而两段雷同的代码要共用就变得不那么容易，甚至有些情况，我们都发现不了他们是雷同的，比如：
+```
+public void method1() {
+    a();
+    a();
+    a();
+    b();
+    c();
+}
+
+public void method2() {
+    a();
+    a();
+    b();
+    b();
+    c();
+    c();
+    c();
+}
+
+public void method3() {
+    b();
+    c();
+}
+
+//... 还有很多method
+
+```
+上面这些函数可以合并成这样：
+```
+public void method(int aNum, int bNum, int cNum) {
+    for (int i = 0; i < aNum; i++) {
+        a();
+    }
+    for (int i = 0; i < bNum; i++) {
+        b();
+    }
+    for (int i = 0; i < cNum; i++) {
+        c();
+    }
+}
+// 之前调用method1、method2和method3的地方则改为：
+// method(3, 1, 1)、method(2, 2, 3)和method(0, 1, 1)
+```
+当然，上面这些函数并不一定就可以通过参数化合起来，能否合起来通常和场景有关。我举上面的例子只是想说明，有时候雷同代码并不一定那么好发现。
+
+有些时候，需要参数化的代码还经常掺杂在一个大函数中。我们需要将这些雷同的代码片段独立成单独的函数，再同过参数化合并成一个函数即可。
+
+
+参数化绝大部分情况下仅仅是为了共用代码，并不是解耦、隔离变化之类等高大上的原因。所以判断是否参数化，最主要的一个考虑因素就是：参数化后能节省多少代码量（这里的代码量还包括未来预期需求变化后可能节省的代码量）。
+
+所以，当我们在犹豫是否应该参数化时，大可不必，保持现状即可。犹豫不决，往往是因为参数化带来的收益本身就不太大，再加上参数化本身就需要花费一些额外改造工作量，最终算下来可能节省的时间还不有我们犹豫所花费的时间多，所以不如等等再看。
+比如下面两个函数：
+```
+public class B {
+    private int a = 0;
+
+    public int method1() {
+        return this.a + 1;
+    }
+
+    public int method2() {
+        return this.a + 2;
+    }
+
+}
+
+```
+假设有上百处调用method1和method2的地方，而且a+1和a+2是具有特殊业务含义的一个操作，未来也不可能出现+3，+4等其他情况，这里强行将method1和method2合并并不会有多大好处，反而你要修改所有调用这两个函数的旧代码。
+
+参数化会修改函数并增加参数，一定会引起所有调用方的修改。所以如果需要参数化的代码，应该尽早识别，尽量避免后期整改；
+参数化不能随便滥用，将两个毫不相干的函数合并只会适得其反；
+
+
+#### 2. 反参数化
+写代码经常会拷贝复制，导致很多雷同的东西分开，但是将两个不同的东西揉在一起的情况却很少。所以，需要参数化的场景随处可见，但是需要反参数化的场景却少之又少。
+
+
+处理反参数化的方式非常简单，就是拆开。这和我们平时所说的大函数不一样，大函数往往是因为业务依赖拼接多了多个代码块；而需要反参数化的函数则是因为某个参数合并在了一起。前者拆开后原函数依然存在，新函数的业务逻辑依然相互依赖，而且调用方不感知；后者拆开后原函数会删除，新函数则变得毫无关系，所有调用方都需要修改。比如：
+```
+// 大函数的拆解
+public void method() {
+    // code block 1
+    // code block 2
+}
+// 扩展出两个子函数
+public void method() {
+    method1();
+    method2();
+}
+
+private void method1() {
+    // code block 1
+}
+
+private void method2() {
+    // code block 2
+}
+	
+```
+
+```
+// 反参数化的拆解
+public void method(boolean b) {
+    if (b) {
+        // code block 1
+    } else {
+        // code block 2
+    }
+}
+// 拆成两个函数
+public void method1() {
+    // code block 1
+}
+
+public void method2() {
+    // code block 2
+}
+	
+```
+
+反参数化最常见的例子就是将if else逻辑转移到上游（参看2.5 依赖关系的解耦 2.1小节）。
+1. 将两个毫不相干的函数合并到了一块。
+比如之前提到的将HashMap的get和put函数合并到一起的例子，所有调用方都非常明确自己是要get还是put的情况下（这种情况下if else逻辑上移后不会产生新的if else），这种合并明显是多余而且极其不合理的。
+
+2. 有些情况，仅仅是想将多个分支隔离开，起到解耦的效果。
+比如：
+```
+public class A {
+    // much other code
+
+    public void test(int type) {
+        if (type == 1) {
+            method1();
+        } else if (type == 2) {
+            method1();
+        // ... many else if
+        } else if (type == 100) {
+            method100();
+        } else {
+            method0();
+        }
+    }
+}
+```
+像上面的代码，method0、method1到method100任何一个逻辑发生变动，都会影响到A整个类。有时候，由于每个if分支的逻辑都相对比较复杂，我们会选择将这些method剥离出去单独成类，由调用方自行选择调用。
+这种做法可以让每个分支的逻辑修改互不影响，最主要的是A会变得非常清净；当然，这种方式是以牺牲上游的调用者为代价的，一旦有调用者使用的不是某个确定的type而是变量，它将需要自行处理if else逻辑。
+
+
+#### 3. 扩展
+参数化和反参数化并不局限于函数，还有类和模块。
+
+对于类而言，成员变量就是参数；
+对于模块而言，配置文件就是参数；
+
+
+所以：
+任何两个相同接口的实现类，都可以通过增加属性合并成一个类；
+反之，任何带有属性的类，都可以拆分成若干个不带有该属性而继承于同一个接口的类。
+
+举个简单的例子：
+```
+
+public interface C {
+    void selectUser();
+}
+
+public class A1 implements C {
+    @Override
+    public void selectUser() {
+        String sql = "select * from user where type = 3";
+        // same code
+    }
+}
+
+public class A2 implements C {
+    @Override
+    public void selectUser() {
+        String sql = "select * from user where type = 2";
+        // same code
+    }
+}
+
+```
+我们可以将A1和A2合并，方式一是给函数增加一个参数，这和上面所讲到的函数参数化方式基本一样：
+```
+public interface C {
+    void selectUser(int type);
+}
+
+public class A implements C {
+    @Override
+    public void selectUser(int type) {
+        String sql = "select * from user where type = " + type;
+        // same code
+    }
+}
+
+```
+
+方式二则是通过成员变量，其实也差不多：
+```
+public interface C {
+    void selectUser(int type);
+}
+
+public class A implements C {
+    private int type;
+    
+    public A(int type) {
+        this.type = type;
+    }
+    
+    @Override
+    public void selectUser() {
+        String sql = "select * from user where type = " + type;
+        // same code
+    }
+}
+
+```
+
+很多时候我们为了避免类泛滥，会将类进行参数化。有时候一个类的逻辑过于复杂，也会进行反参数化。具体逻辑与函数的参数化和反参数化雷同，不再赘述。
+
+参数化在模块级的应用：
+经常当一个项目出现一种新的交付场景时，我们会简单粗暴的拷贝一份原有工程的代码，经过一段时间后，最终变成多份雷同但又不同的代码，有时候一个bug修复需要改多份，一个特性也需要同步多份。如果使用参数化的思想，一开始就应该把不同交付场景的个性抽取出来，做成配置文件，让多个工程共用一份代码。
+而对于一些配置文件无法实现的差异点，比如有很大一段逻辑完全不一样。则应该通过反参数化，分别实现并下放到具体项目中，根据运行时动态注册进去。拿函数举例这是这样：
+```
+public class A {
+
+    public void test(int scene) {
+        if (scene == 交付场景1) {
+            // 场景1的逻辑
+        } else if (scene == 交付场景2) {
+            // 场景2的逻辑
+        } else if (scene == 交付场景3) {
+            // 场景3的逻辑
+        }
+    }
+}
+```
+
+```
+public class A {
+    private AProxy proxy;
+	
+    public void test() {
+        proxy.doYouSelf();
+    }
+	
+	public void registerProxy(AProxy proxy) {
+        this.proxy = proxy;
+    }
+}
+
+public interface AProxy {
+    void doYouSelf();
+}
+
+```
+各个项目组则自行实现自己的AProxy并注入到公共模块A中即可（如果使用了spring的自动注入将会更加方便）。
+
+通过配置文件（参数化）和差异逻辑下放（反参数化）两种方式，两个雷同的工程都可以做到大部分代码共用。实际工作中很多拷贝复制的项目都可以这么做，但对于差异过大或业务发展方向差别很大的两个项目，则同样需要考虑参数化和反参数化最终带来的性价比。有时候成千上万的配置参数也会成为另一种噩梦，为了一层很薄的复用而下放大量业务逻辑也不一定划算。
+
+#### 4. 总结
+参数化和反参数化并不是多么高明的设计技巧，但是却是非常实用的技术手段，经常能为我们节省大量重复代码。
+
+参数化和反参数化由于会增加或删除参数，会引起所有调用方的变化。
+参数化主要解决“同而不合”的问题：即两个明明是相同的东西，却要分开写；需要通过参数化合起来；
+反参数化主要解决“合而不同”的问题：即明明是两个不相干的东西，却写在了一块通过参数对外体现为一个整体；需要通过反参数化分开；
