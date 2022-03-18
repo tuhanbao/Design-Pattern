@@ -1,0 +1,154 @@
+### 1. 原始场景和代码
+玩过七巧板的同学应该知道，我们将一些不同形状的零件，按照特定的顺序，就可以拼出各种各样的小动物。
+现在假设我们有一个创建各种零件的工厂类，可以生产三角形，圆形和方形三种形状的零件，而通过这三种形状的零件我们可以拼出我们任何想要的动物
+
+```
+public class PlankFactory {
+    // 请将TrianglePart、CirclePart和SquarePart想象成完全不同类的东西，他们并不能抽象为同一个接口。
+    public static TrianglePart createTriangle() {
+        return new TrianglePart();
+    }
+	
+    public static CirclePart createCircle() {
+        return new CirclePart();
+    }
+	
+    public static SquarePart createSquare() {
+        return new SquarePart();
+    }
+}
+
+public class Animal {
+
+    public Animal() {
+	}
+	
+	public void addTrianglePart(TrianglePart trianglePart) {
+		// ...
+	}
+	
+	public void addCirclePart(CirclePart circlePart) {
+		// ...
+	}
+	
+	public void addSquarePart(SquarePart squarePart) {
+		// ...
+	}
+	
+	public void joinAllParts() {
+		// ...
+	}
+}
+
+```
+我们需要用这些零件拼出一只小兔子，假设小兔子需要两个圆形，一个方形，再加一个圆形，再加两个三角形拼成。
+那么代码我们大概率写成下面这样：
+
+public class Test() {
+    public static Animal createRabbit() {
+		Animal animal = new Animal();
+		// 兔子：两个圆形，一个方形，再加一个圆形，再加两个三角形
+		animal.addCirclePart(PlankFactory.createCircle());
+		animal.addCirclePart(PlankFactory.createCircle());
+		animal.addSquarePart(PlankFactory.createSquare());
+		animal.addCirclePart(PlankFactory.createCircle());
+		animal.addTrianglePart(PlankFactory.createTriangle());
+		animal.addTrianglePart(PlankFactory.createTriangle());
+		animal.joinAllParts();
+		return animal;
+	}
+}
+
+
+### 2. 演变过程
+
+需求一： **现在要拼出一条狗，而狗的拼接过程是四个圆形，一个三角形。**
+
+所以代码又变成了：
+public class Test() {
+    public static Animal createRabbit() {
+		Animal animal = new Animal();
+		// 兔子：两个圆形，一个方形，再加一个圆形，再加两个三角形
+		animal.addCirclePart(PlankFactory.createCircle());
+		animal.addCirclePart(PlankFactory.createCircle());
+		animal.addSquarePart(PlankFactory.createSquare());
+		animal.addCirclePart(PlankFactory.createCircle());
+		animal.addTrianglePart(PlankFactory.createTriangle());
+		animal.addTrianglePart(PlankFactory.createTriangle());
+		animal.joinAllParts();
+		return animal;
+	}
+	
+	
+    public static Animal createDog() {
+		Animal animal = new Animal();
+		// 狗：四个圆形，一个三角形
+		animal.addCirclePart(PlankFactory.createCircle());
+		animal.addCirclePart(PlankFactory.createCircle());
+		animal.addCirclePart(PlankFactory.createCircle());
+		animal.addCirclePart(PlankFactory.createCircle());
+		animal.addTrianglePart(PlankFactory.createTriangle());
+		animal.joinAllParts();
+		return animal;
+	}
+}
+
+需求二： **做到动态可配，即通过传参，做到是生成狗还是兔子**
+很基本的需求，参数化就好了。
+public class Test() {
+    public static Animal createAnimal(int type) {
+		Animal animal = new Animal();
+		if (type == 1) {
+			// 兔子：两个圆形，一个方形，再加一个圆形，再加两个三角形
+			animal.addCirclePart(PlankFactory.createCircle());
+			animal.addCirclePart(PlankFactory.createCircle());
+			animal.addSquarePart(PlankFactory.createSquare());
+			animal.addCirclePart(PlankFactory.createCircle());
+			animal.addTrianglePart(PlankFactory.createTriangle());
+			animal.addTrianglePart(PlankFactory.createTriangle());
+		} else if (type == 2) {
+			// 狗：四个圆形，一个三角形
+			animal.addCirclePart(PlankFactory.createCircle());
+			animal.addCirclePart(PlankFactory.createCircle());
+			animal.addCirclePart(PlankFactory.createCircle());
+			animal.addCirclePart(PlankFactory.createCircle());
+			animal.addTrianglePart(PlankFactory.createTriangle());
+		}
+		animal.joinAllParts();
+		return animal;
+	}
+}
+当然，我还可以通过反参数化成两个类，来让
+
+需求三： **我们需要拼很多动物，不是一个两个，而是成百上千个。**
+这里我们发现会很难办了，如果一直加方法，方法就有点太多了，而且调的人还必须知道哪个方法是创建哪种动物的。
+将他们参数化后也并不能解决问题，代码会变成这样：
+public class Test() {
+    public static Animal createAnimal(int type) {
+		Animal animal = new Animal();
+		if (type == 1) {
+			// 兔子：两个圆形，一个方形，再加一个圆形，再加两个三角形
+			animal.addCirclePart(PlankFactory.createCircle());
+			animal.addCirclePart(PlankFactory.createCircle());
+			animal.addSquarePart(PlankFactory.createSquare());
+			animal.addCirclePart(PlankFactory.createCircle());
+			animal.addTrianglePart(PlankFactory.createTriangle());
+			animal.addTrianglePart(PlankFactory.createTriangle());
+		} else if (type == 2) {
+			// 狗：四个圆形，一个三角形
+			animal.addCirclePart(PlankFactory.createCircle());
+			animal.addCirclePart(PlankFactory.createCircle());
+			animal.addCirclePart(PlankFactory.createCircle());
+			animal.addCirclePart(PlankFactory.createCircle());
+			animal.addTrianglePart(PlankFactory.createTriangle());
+		} else if ...
+		// 成百上千个if else
+		}
+		animal.joinAllParts();
+		return animal;
+	}
+}
+
+### 3. 思路扩展
+
+

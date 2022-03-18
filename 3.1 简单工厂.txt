@@ -2,74 +2,74 @@
 
 
 ### 1. 原始场景和代码
-类A需要获取一个正方形，而且是在需要的时候随取随用。
+类A需要获取一个苹果手机，而且是在需要的时候随取随用。
 
 那么我们可以这样写：
 ```
 public class A {
     public void test() {
-        Square square = new Square();
+         ApplePhone phone = new ApplePhone();
         // ...
     }
 }
 
-public class Square {
+public class ApplePhone {
     // ...
 }
 ```
 
 ### 2. 演变过程
 
-需求一：**未来可能会出现其他种类的形状，比如，我需要创建一个圆形。**
+需求一：**未来可能会出现其他种类的手机，比如，我需要一个华为手机。**
 这是很明显的一个事物有多种实现的场景，所以，我会做一个最基本的BA转换。
 ```
 // 代码片段3.1.1
 public class A {
     public void test() {
-        Shape shape = new Square();
+        Phone phone = new ApplePhone();
         // ...
     }
 }
 
-public interface Shape {
+public interface Phone {
     // ...
 }
 
-public class Square implements Shape {
+public class ApplePhone implements Phone {
     // ...
 }
 ```
-由于BA模式不能解决实例化的问题，所以A依然直接依赖Square的构造方法，我们暂时只能先定义了一个接口，为后面可能出现的其他形状做好扩展准备。
+由于BA模式不能解决实例化的问题，所以A依然直接依赖ApplePhone的构造方法，我们暂时只能先定义了一个接口，为后面可能出现的其他手机做好扩展准备。
 
 此时如果直接祭出简单工厂模式，代码会变成这样：
 ```
 public class A {
     public void test() {
-        Shape shape = ShapeFactory.createShape();
+        Phone phone = PhoneFactory.createPhone();
         // ...
     }
 }
 
-public class ShapeFactory {
-    public static Shape createShape() {
-        return new Square();
+public class PhoneFactory {
+    public static Phone createPhone() {
+        return new ApplePhone();
     }
 }
 
-public interface Shape {
+public interface Phone {
     // ...
 }
 
-public class Square implements Shape {
+public class ApplePhone implements Phone {
     // ...
 }
 ```
-在当前的需求场景下，这种写法与代码片段3.1.1相比并没有什么好处，反而还多了一个类。未来的一天Square要换成Circle，工厂模式并不能少写一行代码，无非一个改的是class A，一个改的是ShapeFactory；而且类A并没有什么特殊的稳定性要求，也并不需要一个Factory类来隔离变化。所以，当前代码片段3.1.1的写法是优于工厂模式的。
+在当前的需求场景下，这种写法与代码片段3.1.1相比并没有多少好处，反而还多了一个类。未来的一天ApplePhone要换成HWPhone，工厂模式并不能少写一行代码，无非一个改的是class A，一个改的是PhoneFactory；而且类A并没有什么特殊的稳定性要求，也并不需要一个Factory类来隔离变化。所以，当前代码片段3.1.1的写法并没有什么问题。
 
-需求二： **有很多处都需要创建一个形状**
-加上这条需求，好像可以上工厂模式了，并不能！
+需求二： **有很多处都需要创建一个手机**
+加上这条需求，好像可以上工厂模式了，其实并不能确定。
 我们可以很明显的看到，工厂模式一个标准的ACB转换，而ACB转换的主要场景是：“有很多A依赖同一个B，而且这些A的变化行为比较一致（会同时一起变化）”。
-试想一下，我们的代码到处在使用ArrayList, LinkedList，为什么我们自己不封装一个ListFactory？就是因为这些使用List的地方没有一致的变化行为。比如我们有三处代码使用ArrayList
+试想一下，我们的代码到处在使用ArrayList, LinkedList，为什么我们没有封装一个ListFactory？就是因为这些使用List的地方没有一致的行为。比如我们有三处代码使用ArrayList
 ```
 public void test1() {
     List list = new ArrayList<>();
@@ -104,8 +104,6 @@ public void test3() {
     // ...
 }
 
-// ... 还有多处
-
 public class ListFactory {
     public static List createList() {
         return new ArrayList<>();
@@ -114,7 +112,7 @@ public class ListFactory {
 }
 
 ```
-此时，test2方法需求变了，要改成LinkedList，该咋办？test1、test3和test2行为不一致，说它两不用改，而且不能改，改了性能要变差。
+此时，test2方法需求变了，要求改成LinkedList，该咋办？test1、test3说它两不用改，而且不能改，改了性能要变差。
 所以我们不得不给ListFactory增加一个方法，而且为了避免不影响原有代码，使用了重载的方式：
 ```
 public void test1() {
@@ -149,7 +147,7 @@ public class ListFactory {
 ```
 此时假设test3函数也要改成LinkedList，我们要将test函数中的List list = ListFactory.createList()改为List list = ListFactory.createList(1);而最初的代码也只是改一行代码：List list = new ArrayList<>()改为List list = new LinkedList<>();在这里使用工厂模式又有多少意义呢？
 
-有人说，工作量上确实不能节省多少，但是工厂模式更加灵活啊。比如test1函数需要在运行时随时切换List的实现呢，使用工厂模式后我们只需要增加一个传参就可以轻易实现，比如下面的代码，我可以在界面或配置文件加一个配置参数：
+有人说，工作量上确实不能节省多少，但是工厂模式会更加灵活。比如test1函数需要在运行时随时切换List的实现呢，使用工厂模式后我们只需要增加一个传参就可以轻易实现，比如下面的代码，我可以在界面或配置文件加一个配置参数：
 ```
 public void test1(int type) {
     List list = ListFactory.createList(type); // 实现了List的运行时可配
@@ -169,34 +167,34 @@ public void test1(int type) {
     // ...
 }
 ```
-只是说当这种对运行时可配的需求变多了，比如test2和test3也想这样，此时工厂模式才会有那么一些意义。但这最终还是回到了ACB转换的讨论上来，我们还是需要这些方法要有一致的变化行为，ACB转换才有意义。
+只是说当这种对运行时可配的需求变多了，比如test2和test3也想这样，此时工厂模式才会有那么一些意义，它相当于把大家都用使用的if else的逻辑抽成了公共代码。但这最终还是回到了ACB转换的讨论上来，我们还是需要这些方法要有一致的变化行为，ACB转换才有意义。
 
 
-所以如果没有下面需求三的限制，工厂模式依然不是我们的必选项，在接到需求二后，我会进一步去了解使用场景：这些使用形状的地方是否具有一致的变化行为。
+所以如果没有下面需求三的限制，工厂模式依然不是我们的必选项，在接到需求二后，我会进一步去了解使用场景：这些使用手机的地方是否具有一致的变化行为。
 
 
-需求三：**这些创建形状确实存在一致的行为**
+需求三：**这些创建手机确实存在一致的行为**
 
 显而易见，这已经完全符合ACB转换所需的使用场景了。将代码片段3.1.1使用ACB转换，得到如下代码：
 ```
 public class A {
     public void test() {
-        Shape shape = ShapeFactory.createShape();
+        Phone phone = PhoneFactory.createPhone();
         // ...
     }
 }
 
-public class ShapeFactory {
-    public static Shape createShape() {
-        return new Square();
+public class PhoneFactory {
+    public static Phone createPhone() {
+        return new ApplePhone();
     }
 }
 
-public interface Shape {
+public interface Phone {
     // ...
 }
 
-public class Square implements Shape {
+public class ApplePhone implements Phone {
     // ...
 }
 ```
@@ -206,43 +204,44 @@ public class Square implements Shape {
 使用简单工厂模式，一般都会满足这三条需求。当然，这些需求并不是指我们当前能明确的需求，它也包含对未来的预期需求。
 
 
-### 3. 常见的一些错误理解
+### 3. 思路扩展
 1. 简单工厂模式的核心是将一个对象复杂的创建过程封装起来，给调用者公用。
-这个说法其实不准确，如果是因为创建一个对象的过程比较复杂，而选择抽一个公共方法给所有调用者共用，那我们也完全可以把这段创建逻辑放在Square的构造方法中，这是一样的效果，完全没有必须上一个简单工厂模式。
-> 把一个对象的**公共初始化逻辑**放在构造方法中肯定是完全合理的，即使这会让Square的构造函数变得复杂，但这些可以通过再拆解子函数或者转调其他类等手段轻易解决。
+这个说法其实不准确，如果是因为创建一个对象的过程比较复杂，而选择抽一个公共方法给所有调用者共用，那我们也完全可以把这段创建逻辑放在ApplePhone的构造方法中，这是一样的效果，完全没有必须上一个简单工厂模式。
+> 把一个对象的**公共初始化逻辑**放在构造方法中肯定是完全合理的，即使这会让ApplePhone的构造函数变得复杂，但这些可以通过再拆解子函数或者转调其他类等手段轻易解决。
 
-试想一个场景，假设Square的创建过程非常简单，直接new Square()就好了，无论是现在还是将来，都不会变得复杂，我们大概率应该不会给它抽公共方法，比如简单String常量的创建，我们就不会去使用工厂。但如果我们假设Square很可能会被其他形状代替，即使他们的创建都非常简单，我们依然会使用工厂模式，我们本章第二节的代码例子就是如此。
-简单工厂模式，使用BA转换（抽取Shape接口），是为了隔离Square被替代为其他实现时的影响。而使用ACB转换（增加ShapeFactory的createShape方法），虽然是抽取了公共方法，但主要不是为了屏蔽复杂的创建过程，仅仅是为了隔离对具体对象创建的直接依赖（在依赖倒置原则一章中有讲过BA转换的一个缺点：它**解决不了依赖一个具体对象的创建问题**），只不过我们可以顺便把复杂的创建逻辑放在这个公共方法中，但这不是简单工厂模式的核心目的。
+试想一个场景，假设ApplePhone的创建过程非常简单，直接new ApplePhone()就好了，无论是现在还是将来，都不会变得复杂，我们大概率应该不会给它抽公共方法，比如简单String常量的创建，我们就不会去使用工厂。但如果我们假设ApplePhone很可能会被其他手机代替，即使他们的创建都非常简单，我们依然会使用工厂模式，本章第二节的代码例子就是如此。
+简单工厂模式，使用BA转换（抽取Phone接口），是为了隔离ApplePhone被替代为其他实现时的影响。而使用ACB转换（增加PhoneFactory的createPhone方法），虽然是抽取了公共方法，但主要不是为了屏蔽复杂的创建过程，仅仅是为了隔离对具体对象创建的直接依赖（在依赖倒置原则一章中有讲过BA转换的一个缺点：它**解决不了依赖一个具体对象的创建问题**），只不过我们可以顺便把复杂的创建逻辑放在这个公共方法中，但这不是简单工厂模式的核心目的。
 
+> 我们有时候会非常在意自己的代码使用的是什么模式，使用的是否标准等等问题，实际毫无必要。比如当我们只有需求二和需求三时，只抽一个公共方法确实就能为我们解决问题，没有必要追究它是不是一个标准的简单工厂。一旦开始套用设计模式，就陷入了对其的错误理解中。
 
-### 4. 思路扩展
-简单工厂模式使用的是ACB转换，存在一些缺陷：Factory代码中还是有具体对象Square的创建代码，这导致A还是间接依赖Square。
-但是大多数场景下，简单工厂模式都是单例，此时我们可以让Factory和Square之间进行一次BA转换，可以完美解决这个问题。
+2. 简单工厂的进阶用法
+简单工厂模式使用的是ACB转换，存在一些缺陷：Factory代码中还是有具体对象ApplePhone的创建代码，这导致A还是间接依赖ApplePhone。
+但是大多数场景下，简单工厂模式都是单例，此时我们则可以让Factory和ApplePhone之间进行一次BA转换，可以完美依赖ApplePhone的问题。
 ```
 public class A {
     public void test() {
-        Shape shape = ShapeFactory.getShape();
+        Phone phone = PhoneFactory.getPhone();
         // ...
     }
 }
 
-public class ShapeFactory {
-    private static Shape INSTANCE;
+public class PhoneFactory {
+    private static Phone INSTANCE;
 
-    public static Shape getShape() {
+    public static Phone getPhone() {
         return INSTANCE;
     }
     
-    public static void setInstance(Shape shape) {
-        INSTANCE = shape;
+    public static void setInstance(Phone phone) {
+        INSTANCE = phone;
     }
 }
 
-public interface Shape {
+public interface Phone {
     // ...
 }
 
-public class Square implements Shape {
+public class ApplePhone implements Phone {
     // ...
 }
 ```
@@ -250,36 +249,36 @@ public class Square implements Shape {
 ```
 public class A {
     public void test() {
-        Shape shape = ShapeFactory.getShape();
+        Phone phone = PhoneFactory.getPhone();
         // ...
     }
 }
 
-public class ShapeFactory {
-    public static Shape getShape(int type) {
+public class PhoneFactory {
+    public static Phone getPhone(int type) {
         if (type == 1) {
-            return new Circle();
+            return new HWPhone();
         } else if (type == 2) {
-            return new Rectangle();
+            return new WindowPhone();
         } else {
-            return new Square();
+            return new ApplePhone();
         }
     }
 }
 
-public interface Shape {
+public interface Phone {
     // ...
 }
 
-public class Square implements Shape {
+public class ApplePhone implements Phone {
     // ...
 }
 
-public class Circle implements Shape {
+public class HWPhone implements Phone {
     // ...
 }
 
-public class Rectangle implements Shape {
+public class WindowPhone implements Phone {
     // ...
 }
 ```
@@ -287,15 +286,15 @@ public class Rectangle implements Shape {
 ```
 public class A {
     public void test() {
-        Shape shape = ShapeFactory.getShape();
+        Phone phone = PhoneFactory.getPhone();
         // ...
     }
 }
 
-public class ShapeFactory {
-    private static Shape INSTANCE1, INSTANCE2, INSTANCE;
+public class PhoneFactory {
+    private static Phone INSTANCE1, INSTANCE2, INSTANCE;
     
-    public static Shape getShape(int type) {
+    public static Phone getPhone(int type) {
         if (type == 1) {
             return INSTANCE1;
         } else if (type == 2) {
@@ -305,81 +304,81 @@ public class ShapeFactory {
         }
     }
     
-    public static void setInstance1(Shape shape) {
-        INSTANCE1 = shape;
+    public static void setInstance1(Phone phone) {
+        INSTANCE1 = phone;
     }
     
-    public static void setInstance2(Shape shape) {
-        INSTANCE2 = shape;
+    public static void setInstance2(Phone phone) {
+        INSTANCE2 = phone;
     }
     
-    public static void setInstance(Shape shape) {
-        INSTANCE = shape;
+    public static void setInstance(Phone phone) {
+        INSTANCE = phone;
     }
 }
 
-public interface Shape {
+public interface Phone {
     // ...
 }
 
-public class Square implements Shape {
+public class ApplePhone implements Phone {
     // ...
 }
 
-public class Circle implements Shape {
+public class HWPhone implements Phone {
     // ...
 }
 
-public class Rectangle implements Shape {
+public class WindowPhone implements Phone {
     // ...
 }
 ```
-很明显，ShapeFactory的getShape方法非常满足ABs转换的场景：依赖多个具有共同行为的一类对象，而且他们的个数很可能变化。于是通过map进行一次ABs转换：
+很明显，PhoneFactory的getPhone方法非常满足ABs转换的场景：依赖多个具有共同行为的一类对象，而且他们的个数很可能变化。于是通过map进行一次ABs转换：
 ```
 public class A {
     public void test() {
-        Shape shape = ShapeFactory.getShape();
+        Phone phone = PhoneFactory.getPhone();
         // ...
     }
 }
 
-public class ShapeFactory {
-    private static Map<Integer, Shape> map = new HashMap<>();
+public class PhoneFactory {
+    private static Map<Integer, Phone> map = new HashMap<>();
     
-    public static Shape getShape(int type) {
+    public static Phone getPhone(int type) {
         // 这里的代码不够严谨，生产环境需要考虑type不在map中时的默认返回情况。
         return map.get(type);
     }
     
-    public static void setInstance(int type, Shape shape) {
-        map.put(type, shape);
+    public static void setInstance(int type, Phone phone) {
+        map.put(type, phone);
     }
 }
 
-public interface Shape {
+public interface Phone {
     // ...
 }
 
-public class Square implements Shape {
+public class ApplePhone implements Phone {
     // ...
 }
 
-public class Circle implements Shape {
+public class HWPhone implements Phone {
     // ...
 }
 
-public class Rectangle implements Shape {
+public class WindowPhone implements Phone {
     // ...
 }
 ```
 
-我们知道，这里面应用了BA转换，把Shape的具体实例化转嫁给了client角色，也就是说，一定有一个可怜的家伙需要负责执行下面这段代码：
+我们知道，这里面应用了BA转换，把Phone的具体实例化转嫁给了client角色，也就是说，一定有一个可怜的家伙需要负责执行下面这段代码：
 ```
-ShapeFactory.setInstance(0, new Square());
-ShapeFactory.setInstance(1, new Circle());
-ShapeFactory.setInstance(2, new Rectangle());
+PhoneFactory.setInstance(0, new ApplePhone());
+PhoneFactory.setInstance(1, new HWPhone());
+PhoneFactory.setInstance(2, new WindowPhone());
 ```
-只要增加一个新的Shape实现或改变映射关系，所有人都可以不动，这里必然会被影响。
+只要增加一个新的Phone实现或改变映射关系，所有人都可以不动，这里必然会被影响。
 在java语言中，由于“类扫描”的存在，可以解决掉这种问题（类扫描：扫描某个目录或jar包下面所有class）。
 假设我们实现了一个“类扫描”的工具类ClazzUtil，提供了如下一个工具方法：获取当前运行环境中所有实现了接口interfaceClazz的Class对象
 public static <T> List<Class<?>> getAllInterface(Class<T> interfaceClazz)
@@ -389,38 +388,38 @@ public static <T> List<Class<?>> getAllInterface(Class<T> interfaceClazz)
 ```
 public class A {
     public void test() {
-        Shape shape = ShapeFactory.getShape();
+        Phone phone = PhoneFactory.getPhone();
         // ...
     }
 }
 
-public class ShapeFactory {
-    private static Map<Integer, Shape> map = new HashMap<>();
+public class PhoneFactory {
+    private static Map<Integer, Phone> map = new HashMap<>();
 
     static {
-        // 扫描所有shape的实现类并实例化存入map中
-        for (Class<?> item : ClazzUtil.getAllInterface(Shape.class)) {
+        // 扫描所有phone的实现类并实例化存入map中
+        for (Class<?> item : ClazzUtil.getAllInterface(Phone.class)) {
             try {
-                Shape shape = (Shape)item.newInstance();
-                map.put(shape.getType(), shape);
+                Phone phone = (Phone)item.newInstance();
+                map.put(phone.getType(), phone);
             } catch (Exception e) {
-                LogManager.error("init clazz error : " + item);
+                // ...
             }
         }
     }
 
-    public static Shape getShape(int type) {
+    public static Phone getPhone(int type) {
         // 这里的代码不够严谨，生产环境需要考虑type不在map中时的默认返回情况。
         return map.get(type);
     }
 }
 
-public interface Shape {
+public interface Phone {
     int getType();
     // ...
 }
 
-public class Square implements Shape {
+public class ApplePhone implements Phone {
     public int getType() {
         return 0;
     }
@@ -428,7 +427,7 @@ public class Square implements Shape {
     // ...
 }
 
-public class Circle implements Shape {
+public class HWPhone implements Phone {
     public int getType() {
         return 1;
     }
@@ -436,7 +435,7 @@ public class Circle implements Shape {
     // ...
 }
 
-public class Rectangle implements Shape {
+public class WindowPhone implements Phone {
     public int getType() {
         return 2;
     }
@@ -444,8 +443,8 @@ public class Rectangle implements Shape {
     // ...
 }
 ```
-可以看到，我们给Shape增加了一个getType()方法，这样以后再增加一个Shape的实现，只需要增加你自己的类即可，任何其他地方都不需要修改。
+可以看到，我们给Phone增加了一个getType()方法，方便自注册。这样以后再增加一个Phone的实现，只需要增加你自己的类即可，任何其他地方都不需要修改。
 
-当然，这里只是示例，实际情况可能会考虑大对象需要懒加载，构造方法需要传参等细节问题，但都是一些单纯的技术问题了，这里不再赘述。
+当然，这里只是简单示例，实际情况可能会考虑大对象需要懒加载，构造方法需要传参等细节问题，但都是一些单纯的技术问题了，这里不再赘述。
 
-如果使用了spring，我们则不用实现自己的ClazzUtil.getAllInterface方法了，spring可以通过@Autowired轻松获取到一个接口的所有实例，最终原理与上面类似。
+> 如果使用了spring，我们则不用实现自己的ClazzUtil.getAllInterface方法了，spring可以通过@Autowired轻松获取到一个接口的所有实例，最终原理与上面类似。
