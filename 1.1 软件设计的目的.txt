@@ -5,17 +5,17 @@
 我们如果使用5Why分析法，不难追寻出设计的最终目的。
 
   - **为什么要做设计？**
-  因为可以让代码扩展性更好，更易维护。
+    因为可以让代码扩展性更好，更易维护。
   - **为什么要让代码的扩展性更好，更易维护？**
-  因为这样后续修改或增加需求可以更简单。
+    因为这样后续修改或增加需求可以更简单。
   - **让修改和增加需求变得简单又是要干嘛？**
-  这样我们需要改动的代码就很少。
+    这样我们需要改动的代码就很少。
   - **改动的代码很少对我们有什么好处？**
-  代码改动少就可以节省很多工作量。
+    代码改动少就可以节省很多工作量。
   - **为什么要节省工作量？**
-  可以省时间。
+    可以省时间。
   - **省时间有什么好处？**
-  给公司省钱
+    给公司省钱。
 
 >摘自维基百科 **Five whys** (or **5 whys**) is an [iterative](https://en.jinzhao.wiki/wiki/Iteration) interrogative [technique](https://en.jinzhao.wiki/wiki/Skill) used to explore the [cause-and-effect](https://en.jinzhao.wiki/wiki/Causality) relationships underlying a particular problem.[[1\]](https://en.jinzhao.wiki/wiki/Five_whys#cite_note-1) The primary goal of the technique is to determine the [root cause](https://en.jinzhao.wiki/wiki/Root_cause) of a [defect](https://en.wiktionary.org/wiki/defect) or problem by repeating the question "Why?". Each answer forms the basis of the next question. The "five" in the name derives from an anecdotal observation on the number of iterations needed to resolve the problem.
 

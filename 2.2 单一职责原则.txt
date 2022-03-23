@@ -24,28 +24,28 @@
 递归拆解的方式并非面向对象软件设计的专利，面向过程设计也会将复杂的模块分解成一个一个更小的模块，然后复用其中一些函数或模块。面向过程与面向对象设计的本质区别其实在于**如何拆**，这种拆的方式会最终影响到软件的可复用性。
 
 举个例子，假设下面这幅画是一幅“巨著”，工作量巨大，我们需要将它分配给四个“画家”协作进行完成，该如何划分？
-![8ab8919352bf595f301698eaafe1d75c_714x554.png@900-0-90-f.png](http://image.huawei.com/tiny-lts/v1/images/8ab8919352bf595f301698eaafe1d75c_714x554.png@900-0-90-f.png)
+![](C:\Users\A\Desktop\Design-Pattern-main\image\image-20211116184006176.png)
 
 一种最简单粗暴的分法方式一：水平垂直各砍一刀，平分为四块，每人各画一部分。
 
-![8ffbaf4dd5027dc87730ca8fefbb1747_988x752.png@900-0-90-f.png](http://image.huawei.com/tiny-lts/v1/images/8ffbaf4dd5027dc87730ca8fefbb1747_988x752.png@900-0-90-f.png)
+![](C:\Users\A\Desktop\Design-Pattern-main\image\image-20211116195031986.png)
 
 还有一种分法方式二：按照元素来分。
 一人画天空：
 
-![1975abeed8cfda20036c0159ee2ee5e0_670x311.png@900-0-90-f.png](http://image.huawei.com/tiny-lts/v1/images/1975abeed8cfda20036c0159ee2ee5e0_670x311.png@900-0-90-f.png)
+![](C:\Users\A\Desktop\Design-Pattern-main\image\image-20211116195221968.png)
 
 一人画大山：
 
-![a4c13acae67026053465563a2b8f7351_634x356.png@900-0-90-f.png](http://image.huawei.com/tiny-lts/v1/images/a4c13acae67026053465563a2b8f7351_634x356.png@900-0-90-f.png)
+![](C:\Users\A\Desktop\Design-Pattern-main\image\image-20211116195317146.png)
 
 一人画树林：
 
-![8d20e0c3c873d5c87162c843a9daaccb_744x219.png@900-0-90-f.png](http://image.huawei.com/tiny-lts/v1/images/8d20e0c3c873d5c87162c843a9daaccb_744x219.png@900-0-90-f.png)
+![](C:\Users\A\Desktop\Design-Pattern-main\image\image-20211116195350093.png)
 
 最后一个设计签名：
 
-![844f3b92f4d54221a44dc81e1a017687_248x147.png@900-0-90-f.png](http://image.huawei.com/tiny-lts/v1/images/844f3b92f4d54221a44dc81e1a017687_248x147.png@900-0-90-f.png)
+![](C:\Users\A\Desktop\Design-Pattern-main\image\image-20211116195405296.png)
 
 如果仅仅是完成这幅画，两种方式工作量其实差距不大。但后续如果需要修改这幅画，两种方式区别就大了。
 - 比如要修改白云的颜色，会发现画家一和画家二都需要改动，而且工作比较雷同；
@@ -447,7 +447,6 @@ private static void checkIP(IPInfo ipInfo) {
 本章更多的讲的是“**一**”和“**变化因子**”的概念，至于如何找到**变化因子**，再如何根据**变化因子**分解成一个一个合理的“**一**”却描述不多，我相信即使我再列举更多的例子也无法说明这个拆解过程，这个拆解的过程有一个非常响亮的名称——**抽象**。
 
 之所以单一职责原则很难理解，正是因为抽象太难理解（参考**2.4 再谈抽象**)
-
 
 
 

@@ -43,7 +43,7 @@ public class Animal {
 ```
 我们需要用这些零件拼出一只小兔子，假设小兔子需要两个圆形，一个方形，再加一个圆形，再加两个三角形拼成。
 那么代码我们大概率写成下面这样：
-
+```
 public class Test() {
     public static Animal createRabbit() {
 		Animal animal = new Animal();
@@ -58,13 +58,15 @@ public class Test() {
 		return animal;
 	}
 }
-
+```
 
 ### 2. 演变过程
 
 需求一： **现在要拼出一条狗，而狗的拼接过程是四个圆形，一个三角形。**
 
-所以代码又变成了：
+最简单的实现方式就是加一个方法，让调用者根据自己要创建的动物自行选择要使用哪个方法：
+```
+// 方式一
 public class Test() {
     public static Animal createRabbit() {
 		Animal animal = new Animal();
@@ -78,7 +80,6 @@ public class Test() {
 		animal.joinAllParts();
 		return animal;
 	}
-	
 	
     public static Animal createDog() {
 		Animal animal = new Animal();
@@ -92,9 +93,49 @@ public class Test() {
 		return animal;
 	}
 }
+```
 
-需求二： **做到动态可配，即通过传参，做到是生成狗还是兔子**
-很基本的需求，参数化就好了。
+根据之前讨论过得内容，我们还可以将方法抽象到类的层次：
+
+```
+// 方式二
+public interface AnimalBuilder {
+	Animal build();
+}
+
+public class RabbitBuilder implements AnimalBuilder {
+    public Animal build() {
+		Animal animal = new Animal();
+		// 兔子：两个圆形，一个方形，再加一个圆形，再加两个三角形
+		animal.addCirclePart(PlankFactory.createCircle());
+		animal.addCirclePart(PlankFactory.createCircle());
+		animal.addSquarePart(PlankFactory.createSquare());
+		animal.addCirclePart(PlankFactory.createCircle());
+		animal.addTrianglePart(PlankFactory.createTriangle());
+		animal.addTrianglePart(PlankFactory.createTriangle());
+		animal.joinAllParts();
+		return animal;
+	}
+}
+			
+public class DogBuilder implements AnimalBuilder {			
+	public Animal build() {
+		Animal animal = new Animal();
+		// 狗：四个圆形，一个三角形
+		animal.addCirclePart(PlankFactory.createCircle());
+		animal.addCirclePart(PlankFactory.createCircle());
+		animal.addCirclePart(PlankFactory.createCircle());
+		animal.addCirclePart(PlankFactory.createCircle());
+		animal.addTrianglePart(PlankFactory.createTriangle());
+		animal.joinAllParts();
+		return animal;
+	}
+}
+```
+
+当然，我们也可以通过参数化将方式一的方法何并起来或者把方式二的类合并起来
+```
+// 方式三
 public class Test() {
     public static Animal createAnimal(int type) {
 		Animal animal = new Animal();
@@ -118,15 +159,18 @@ public class Test() {
 		return animal;
 	}
 }
-当然，我还可以通过反参数化成两个类，来让
+```
 
-需求三： **我们需要拼很多动物，不是一个两个，而是成百上千个。**
-这里我们发现会很难办了，如果一直加方法，方法就有点太多了，而且调的人还必须知道哪个方法是创建哪种动物的。
-将他们参数化后也并不能解决问题，代码会变成这样：
-public class Test() {
-    public static Animal createAnimal(int type) {
+```
+// 方式四
+public class AnimalBuilder {
+	public AnimalBuilder(int type) {
+		this.type = type;
+	}
+	
+	public Animal createAnimal() {
 		Animal animal = new Animal();
-		if (type == 1) {
+		if (this.type == 1) {
 			// 兔子：两个圆形，一个方形，再加一个圆形，再加两个三角形
 			animal.addCirclePart(PlankFactory.createCircle());
 			animal.addCirclePart(PlankFactory.createCircle());
@@ -134,21 +178,83 @@ public class Test() {
 			animal.addCirclePart(PlankFactory.createCircle());
 			animal.addTrianglePart(PlankFactory.createTriangle());
 			animal.addTrianglePart(PlankFactory.createTriangle());
-		} else if (type == 2) {
+		} else if (this.type == 2) {
 			// 狗：四个圆形，一个三角形
 			animal.addCirclePart(PlankFactory.createCircle());
 			animal.addCirclePart(PlankFactory.createCircle());
 			animal.addCirclePart(PlankFactory.createCircle());
 			animal.addCirclePart(PlankFactory.createCircle());
 			animal.addTrianglePart(PlankFactory.createTriangle());
-		} else if ...
-		// 成百上千个if else
 		}
 		animal.joinAllParts();
 		return animal;
 	}
 }
+```
+
+真实情况中，如果每个具体动物的逻辑比较复杂，将这些逻辑分开是更好的方式，再加上考虑后续扩展更为方便，方式二可能最优。而且当动物多起来的时候，还可以利用简单工厂模式，新建一个BuilderFactory类，调用者根据参数获取对应的AnimalBuilder。
+
+
+需求二： **我们需要拼很多动物，不是一个两个，而是成百上千个。**
+很明显，上面的四种方式，只要增加一种动物，就需要增加一个if else分支，或者增加一个方法和类。加几个动物还好，成百上千个就太过于艰难了。
+
+解决这种问题只有一个办法，就是看是否能将所有动物的创建过程抽象到更高层次，而且尽可能保留多的共性。
+如果仔细观察，会发现每种动物创建的个性主要体现在形状的数量和顺序上，我们可以利用一个int数组来对这些个性进行表示。
+我们让1代表三角形，2代表圆形，3代表方形，创建兔子需要两个圆形，一个方形，再加一个圆形，再加两个三角形，则那么可以表示为{2, 2, 3, 2, 1, 1}；创建狗需要四个圆形，一个三角形，则可以表示为{2, 2, 2, 2, 3}。
+那么代码可以变为：
+```
+public class AnimalBuilder() {
+	private int[] shapes;
+
+	public AnimalBuilder(int[] shapes) {
+		this.shapes = shapes;
+	}
+	
+	
+    public Animal createAnimal() {
+		Animal animal = new Animal();
+		for (int shape : this.shapes) {
+			addShape(animal, shape);
+		}
+		animal.joinAllParts();
+		return animal;
+	}
+	
+	private static void addShape(Animal animal, int shape) {
+		if (shape == 1) {
+			animal.addTrianglePart(PlankFactory.createTriangle());
+		} else if (shape == 2) {
+			animal.addCirclePart(PlankFactory.createCircle());
+		} else if (shape == 3) {
+			animal.addSquarePart(PlankFactory.createSquare());
+		}
+	}
+}
+```
+或者直接提供一个工具方法即可
+```
+public class Test() {
+    public static Animal createAnimal(int[] shapes) {
+		Animal animal = new Animal();
+		for (int shape : shapes) {
+			addShape(animal, shape);
+		}
+		animal.joinAllParts();
+		return animal;
+	}
+	
+	private static void addShape(Animal animal, int shape) {
+		if (shape == 1) {
+			animal.addTrianglePart(PlankFactory.createTriangle());
+		} else if (shape == 2) {
+			animal.addCirclePart(PlankFactory.createCircle());
+		} else if (shape == 3) {
+			animal.addSquarePart(PlankFactory.createSquare());
+		}
+	}
+}
+```
 
 ### 3. 思路扩展
 
-
+变化在哪里，便抽象哪里。
