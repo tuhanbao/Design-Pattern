@@ -1,0 +1,54 @@
+### 1. 原始场景和代码
+工厂方法模式并没有什么新意，只是抽象工厂的一个变换而已。
+试想一个只有一个产品的抽象工厂例子：
+```
+public interface PhoneFactory {
+    Phone createPhone();
+}
+
+public class ApplePhoneFactory implements PhoneFactory {
+    @Override
+	public Phone createPhone() {
+        return new ApplePhone();
+    }
+}
+
+public class HWPhoneFactory implements PhoneFactory {
+    @Override
+	public Phone createPhone() {
+        return new HWPhone();
+    }
+}
+
+public interface Phone {
+    // ...
+}
+
+public class ApplePhone implements Phone {
+    // ...
+}
+
+public class HWPhone implements Phone {
+    // ...
+}
+```
+
+### 2. 演变过程
+
+现在有个调用者，要用手机打电话，至于是什么手机无所谓，能给它个手机就行。
+```
+public class CallClient {
+	public void call() {
+		Phone phone = getPhone();
+		// 开始打电话
+		// ...
+	}
+	
+	p
+}
+
+
+
+### 3. 思路扩展
+
+
