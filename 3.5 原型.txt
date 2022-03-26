@@ -1,0 +1,120 @@
+### 1. 原始场景和代码
+回忆一下只有一个产品的抽象工厂模式，我们将其作为我们的原始场景和代码：
+```
+public interface PhoneFactory {
+    Phone createPhone();
+}
+
+public class ApplePhoneFactory implements PhoneFactory {
+    @Override
+	public Phone createPhone() {
+        return new ApplePhone();
+    }
+}
+
+public class HWPhoneFactory implements PhoneFactory {
+    @Override
+	public Phone createPhone() {
+        return new HWPhone();
+    }
+}
+
+public interface Phone {
+    // ...
+}
+
+public class ApplePhone implements Phone {
+    // ...
+}
+
+public class HWPhone implements Phone {
+    // ...
+}
+```
+
+
+### 2. 演变过程
+
+需求一：**我们要创建的就是PhoneFactory对象**
+很简单，直接修改即可
+```
+public interface PhoneFactory {
+    PhoneFactory createPhoneFactory();
+}
+
+public class ApplePhoneFactory implements PhoneFactory {
+    @Override
+	public PhoneFactory createPhoneFactory() {
+        return new ApplePhoneFactory();
+    }
+}
+
+public class HWPhoneFactory implements PhoneFactory {
+    @Override
+	public PhoneFactory createPhoneFactory() {
+        return new HWPhoneFactory();
+    }
+}
+```
+
+然后将PhoneFactory改名为Product，将createPhoneFactory方法改名为clone。
+
+```
+public interface Product {
+    Product clone();
+}
+
+public class AppleProduct implements Product {
+    @Override
+	public Product clone() {
+        return new AppleProduct();
+    }
+}
+
+public class HWProduct implements Product {
+    @Override
+	public Product clone() {
+        return new HWProduct();
+    }
+}
+```
+
+需求二：**要求clone方法创建的对象和他自己的属性保持一致**
+
+```
+public interface Product {
+    Product clone();
+}
+
+public class AppleProduct implements Product {
+    @Override
+	public Product clone() {
+        Product product = new AppleProduct();
+		// 拷贝属性
+		// product.setXXX(this.getXXX());
+		// ...
+		return product;
+    }
+}
+
+public class HWProduct implements Product {
+    @Override
+	public Product clone() {
+        Product product = new HWProduct();
+		// 拷贝属性
+		// product.setXXX(this.getXXX());
+		// ...
+		return product;
+    }
+}
+```
+
+### 3. 思路扩展
+1. 原型模式和抽象工厂模式
+这两者几乎一样，只是应用场景存在以下区别：
+- 原型模式将其本身和抽象工厂类合并在了一起，所以少了很多类；
+- 原型模式可以创建一个和自己一模一样的实体；
+
+2. 
+
+
