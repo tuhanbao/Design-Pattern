@@ -35,8 +35,8 @@ public class HWPhone implements Phone {
 
 ### 2. 演变过程
 
-需求一：**我们要创建的就是PhoneFactory对象**
-很简单，直接修改即可
+需求一：**我们要创建的就是PhoneFactory对象自己**
+这实质上是要求我们将Factory类的Product类合并起来。很简单，直接修改即可
 ```
 public interface PhoneFactory {
     PhoneFactory createPhoneFactory();
@@ -57,7 +57,7 @@ public class HWPhoneFactory implements PhoneFactory {
 }
 ```
 
-然后将PhoneFactory改名为Product，将createPhoneFactory方法改名为clone。
+为了更贴合实际，我们将PhoneFactory改名为Product，将createPhoneFactory方法改名为clone。
 
 ```
 public interface Product {
@@ -89,7 +89,7 @@ public interface Product {
 public class AppleProduct implements Product {
     @Override
 	public Product clone() {
-        Product product = new AppleProduct();
+        AppleProduct product = new AppleProduct();
 		// 拷贝属性
 		// product.setXXX(this.getXXX());
 		// ...
@@ -100,7 +100,7 @@ public class AppleProduct implements Product {
 public class HWProduct implements Product {
     @Override
 	public Product clone() {
-        Product product = new HWProduct();
+        HWProduct product = new HWProduct();
 		// 拷贝属性
 		// product.setXXX(this.getXXX());
 		// ...
@@ -109,12 +109,62 @@ public class HWProduct implements Product {
 }
 ```
 
+原型模式至此就全部完成了。
+
 ### 3. 思路扩展
 1. 原型模式和抽象工厂模式
 这两者几乎一样，只是应用场景存在以下区别：
 - 原型模式将其本身和抽象工厂类合并在了一起，所以少了很多类；
 - 原型模式可以创建一个和自己一模一样的实体；
 
-2. 
+这两点区别并非优点或缺点，而是应用场景下的抉择。
+如果要创建的对象不是自己本身，将product本身和其创建过程分开是更符合单一职责原则做法。将product和其创建过程合并到一个类中，只是为了更方便创建自己。
+试想一下要是使用抽象工厂，我们要创建一个指定对象的复制，代码很可能变成这样：
+```
+public interface PhoneFactory {
+    Phone createPhone(Phone phone);
+}
+
+public class ApplePhoneFactory implements PhoneFactory {
+    @Override
+	public Phone createPhone(Phone phone) {
+        Phone copy = new ApplePhone();
+		// 拷贝属性
+		// copy.setXXX(phone.getXXX());
+		// ...
+		return copy;
+    }
+}
+
+public class HWPhoneFactory implements PhoneFactory {
+    @Override
+	public Phone createPhone(Phone phone) {
+        Phone copy = new HWPhone();
+		// 拷贝属性
+		// copy.setXXX(phone.getXXX());
+		// ...
+		return copy;
+    }
+}
+
+public interface Phone {
+    // ...
+}
+
+public class ApplePhone implements Phone {
+    // ...
+}
+
+public class HWPhone implements Phone {
+    // ...
+}
+```
+我们需要给创建方法增加传参，传参如果写成抽象接口Phone，拷贝过程又会很为难，我们并不会把一些getter，setter方法定义在接口中。如果传参是具体的实现类，通用性又会有一些损失，即使可以使用泛型解决这些问题，但始终会比原型模式困难很多。
+
+2. 原型模式在java中的应用
+原型模式在java中毫无用武之地，它已经被抽象到了java的顶级对象Object中。所以使用java语言，不会有编写原型模式的必要，我们只需要声明实现了Cloneable接口，就天生自带了一个浅拷贝实现。
+
+3. 浅拷贝和深拷贝
+之所以提出这两个概念，只是想再次提醒一下，这种纯技术类问题并非一本设计类书籍应该讨论的问题。
 
 

@@ -20,7 +20,7 @@ public int test(int type) {
 }
 ```
 
-看起来很傻，貌似不会有人写出这种代码，这个函数压根都不应该存在。可是实际上我们绝大多数人都有犯过这种错误：
+看起来很傻，貌似不会有人写出这种代码，这个函数压根都不应该存在。可是实际上我们很可能犯过这种错误：
 
 ```
 public class A {
@@ -102,7 +102,7 @@ public class B {
 }
 ```
 
-有人会说这样不还是没有消灭if else吗，还不是和之前一样转移到了hash表中。确实如此，map本质上就是if else的逻辑处理，但和直接转移到hash表中不同的是，这里再增加type，只需要修改map的映射内容，而不必增加一个handler或method（参考2.5 依赖关系的结构中2.3小节）。
+有人会说这样不还是没有消灭if else吗，还不是和之前一样转移到了hash表中。确实如此，map本质上就是if else的逻辑处理。但和直接转移到hash表中不同的是，这里再增加type，只需要修改map的映射内容，而不必增加一个handler或method（参考2.5 依赖关系的结构中2.3小节）。
 这些伪if else的分支实质上是同样的东西，我们要做的是将他们识别出来。
 
 识别这种伪if else的方式依靠的正是抽象：函数selectUser(int type)和selectAdminUser、selectAuditUser、selectNormalUser相比，只是剥离了type的个性，保留了他们的共性，而这种**个性**上移到了调用方的传参之中。
