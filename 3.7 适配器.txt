@@ -1,0 +1,171 @@
+### 1. 原始场景和代码
+我们有一个加密功能需求，需要实现XX对称加密算法的加密和解密。
+由于这种算法比较普遍，网上有大量实现。于是我们在网上找到了一个开源jar包，代码如下：
+```
+public class XXEncryptor {
+
+	
+	public byte[] jiami(byte[] bs) {
+		// 特殊加密算法
+		// ...
+	}
+	
+	public byte[] jiemi(byte[] bs) {
+		// 特殊解密算法
+		// ...
+	}
+
+}
+
+```
+
+由于我们要的是String的加解密，所以我们封装了一个工具类。
+
+```
+public class EncryptUtil {
+	private static final XXEncryptor ENCRYPTOR = new XXEncryptor();
+	
+	public static String encrypt(String msg) {
+		byte[] cipher = ENCRYPTOR.jiami(msg.getBytes());
+		return Base64.encode(cipher);
+	}
+	
+	public static String decrypt(String msg) {
+		byte[] cipher = Base64.decode(msg);
+		return new String(ENCRYPTOR.jiemi(cipher));
+	}
+}
+
+```
+
+
+### 2. 演变过程
+
+需求一：**由于存储的要求，我们的明文和密文都必须是String**
+我们不能修改XXEncryptor的源码，所以直接封装一个工具类就行了（ACB转换）。
+```
+public class XXEncryptUtil {
+	private static final XXEncryptor ENCRYPTOR = new XXEncryptor();
+	
+	public static String encrypt(String msg) {
+		byte[] cipher = ENCRYPTOR.jiami(msg.getBytes());
+		return Base64.encode(cipher);
+	}
+	
+	public static String decrypt(String msg) {
+		byte[] cipher = Base64.decode(msg);
+		return new String(ENCRYPTOR.jiemi(cipher));
+	}
+}
+
+```
+
+需求二：**有新的项目要求使用新的加密算法。而且未来可能会需要增加更多的加密算法， 为了扩展性，要求可以随时切换加密算法。**
+加密有多种实现，明显的BA转换需求。
+所以我们增加了一个Encryptor接口，然后将XXEncryptUtil改成一个实现Encryptor的具体子类。
+```
+
+public interface Encryptor {
+	String encrypt(String msg);
+	
+	String decrypt(String msg);
+}
+
+public class XXEncryptorWrapper implements Encryptor {
+	private final XXEncryptor xxEncryptor = new XXEncryptor();
+	
+	@Override
+	public String encrypt(String msg) {
+		byte[] cipher = this.xxEncryptor.jiami(msg.getBytes());
+		return Base64.encode(cipher);
+	}
+	
+	@Override
+	public String decrypt(String msg) {
+		byte[] cipher = Base64.decode(msg);
+		return new String(this.xxEncryptor.jiemi(cipher));
+	}
+}
+```
+
+组合和继承经常是可以互相转换的，他们都可以实现ACB转换。现在XX加密算法不再是一个静态的工具类方法，所以我们也可以把上面的组合改成继承：
+```
+
+public interface Encryptor {
+	String encrypt(String msg);
+	
+	String decrypt(String msg);
+}
+
+public class XXEncryptorWrapper extends XXEncryptor implements Encryptor {
+	
+	@Override
+	public String encrypt(String msg) {
+		byte[] cipher = this.jiami(msg.getBytes());
+		return Base64.encode(cipher);
+	}
+	
+	@Override
+	public String decrypt(String msg) {
+		byte[] cipher = Base64.decode(msg);
+		return new String(this.jiemi(cipher));
+	}
+}
+```
+
+至此，适配器的两种形态就都出来了。
+
+
+### 3. 思路扩展
+1. 如果没有需求一
+
+其实如果没有需求一，只有需求二的情况下：即我们要的加解密算法本来就是直接操作byte数组的。
+我们会发现代码最终还是会演变成当前的样子：只是少写了一些代码，XXEncryptorWrapper类依然必须存在。
+```
+public interface Encryptor {
+	byte[] encrypt(byte[] msg);
+	
+	byte[] decrypt(byte[] msg);
+}
+
+
+// 组合方式
+public class XXEncryptorWrapper implements Encryptor {
+	private final XXEncryptor xxEncryptor = new XXEncryptor();
+	
+	@Override
+	public byte[] encrypt(byte[] msg) {
+		return this.xxEncryptor.jiami(msg);
+	}
+	
+	@Override
+	public byte[] decrypt(byte[] msg) {
+		this.xxEncryptor.decrypt(msg));
+	}
+}
+
+// 继承方式
+public class XXEncryptorWrapper extends XXEncryptor implements Encryptor {
+	// 不需要写任何代码
+}
+```
+
+这里很能反应BA模式的缺点：如果一个类不受我们控制（有时是因为代码是别人的，有时是因为改动成本太大），则无法直接使用BA转换。
+此时我们只能配合ACB转换一起使用。
+
+在《2.3 依赖倒置原则》中提到过一种依赖关系：A←C→B。正是描述的这种用法：
+A←C→B：A→B经过ACB转换变成A→C→B，其中A→C进行BA转换变成A←C→B
+
+这像极了《神雕侠侣》中的一段情节：洪七公和欧阳锋，两人精疲力竭，都不能动弹，便找了杨过当中间人。洪七公先将打狗棍法教给杨过，让杨过跑到对面山洞演示给欧阳锋看；欧阳锋想出破解之招后再教给杨过，让杨过跑到对面演示给洪七公看；如此反复。
+其中A是洪七公，B是欧阳锋，C则是杨过。
+
+实际工作中用到适配器模式的场景也是如此，AB是两个不相干的模块，彼此接口不兼容但又都不想修改去迁就对方。
+A希望可以随便更换B，而且保持自己的代码不变；B又是不可控代码，它根本不会理会A的诉求。最终便只能增加一个孙子C，来伺候两边的大爷。
+
+2. 如果没有需求二
+如果没有需求二，即只是做了一个最基本的ACB转换。
+我想，这依然称得上是一种优美的适配器模式。而且在实际工作中，我们经常使用这种更简单的适配器模式：这可以极大的减轻未来三方件变更带来的影响。
+而只有当我们的调用方需要实现多种加密算法进行选择时，才会在前面加一次BA转换，而这并不是适配器的核心。
+
+所以，如果有人说你用的不是标准的适配器模式，前面少了一层接口抽象，那么请不用理会他。我们要做的是，看下自己的业务是否真的有BA转换的必要。
+为了匹配适配器模式的标准代码，故意增加一个抽象接口，除了会多一点代码之外，不会有什么其他实际意义。

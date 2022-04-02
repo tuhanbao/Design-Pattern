@@ -1,0 +1,61 @@
+### 1. 原始场景和代码
+现在A公司，想做一个简单的内部管理系统。
+通过调研，我们知道A公司的组织结构如下：
+- 公司包含多个一级部门，每个一级部门下面又包含多个二级部门，二级部门包含三级部门。具体有多少个层级并不固定，有的多，有的少，未来也可能因为人员增减出现变动。
+- 每个部门下面会挂靠一些管理人员或行政人员，而最底层的部门挂的则全是普通员工。
+
+根据上面需求，我们可以抽象出两个基本概念：部门和员工。
+- 部门：包含N个子部门和M个员工（N和M都可以为0）
+- 员工：有职位，工号等信息
+
+于是，最基本的代码就出来了：
+```
+public class Dept {
+	private List<Employee> employees;
+	
+	private List<Dept> depts;
+	
+	public void addDept(Dept dept) {
+		// this.depts.add(dept);
+		// ...
+	}
+	
+	public void removeDept(Dept dept) {
+		// this.depts.remove(dept);
+		// ...
+	}
+	
+	public void addEmployee(Employee emp) {
+		// this.employees.add(emp);
+		// ...
+	}
+	
+	public void addEmployee(Employee emp) {
+		// this.employees.remove(emp);
+		// ...
+	}
+
+	// ...
+
+}
+
+public class Employee {
+	private int empNO;
+	
+	private String name;
+	
+	private String title;
+	
+	// ...
+}
+
+
+### 2. 演变过程
+
+
+
+
+### 3. 思路扩展
+组合模式本质只是在一种特定应用场景——树型结构下的BA转换。
+当我们剖析的设计模式越来越多时，发现会越来越难吸取到新的东西。
+
