@@ -1,12 +1,12 @@
 ### 1. 原始场景和代码
 现在A公司，想做一个简单的内部管理系统。
 通过调研，我们知道A公司的组织结构如下：
-- 公司包含多个一级部门，每个一级部门下面又包含多个二级部门，二级部门包含三级部门。具体有多少个层级并不固定，有的多，有的少，未来也可能因为人员增减出现变动。
+- 公司包含多个一级部门，每个一级部门下面又包含多个二级部门，二级部门包含三级部门。具体有多少层级并不固定，有的多有的少，人员增减层级也会变动。
 - 每个部门下面会挂靠一些管理人员或行政人员，而最底层的部门挂的则全是普通员工。
 
 根据上面需求，我们可以抽象出两个基本概念：部门和员工。
-- 部门：包含N个子部门和M个员工（N和M都可以为0）
-- 员工：有职位，工号等信息
+- 部门：有部门编号属性，包含N个子部门和M个员工（N和M都可以为0）
+- 员工：有职位，员工编号等信息
 
 于是，最基本的代码就出来了：
 ```
@@ -15,24 +15,18 @@ public class Dept {
 	
 	private List<Dept> depts;
 	
-	public void addDept(Dept dept) {
-		// this.depts.add(dept);
-		// ...
+	private int deptNo;
+	
+	public List<Employee> getEmployees() {
+		return this.employees;
 	}
 	
-	public void removeDept(Dept dept) {
-		// this.depts.remove(dept);
-		// ...
+	public List<Dept> getDepts() {
+		return this.depts;
 	}
 	
-	public void addEmployee(Employee emp) {
-		// this.employees.add(emp);
-		// ...
-	}
-	
-	public void addEmployee(Employee emp) {
-		// this.employees.remove(emp);
-		// ...
+	public int getDeptNo() {
+		return this.deptNo;
 	}
 
 	// ...
@@ -51,11 +45,167 @@ public class Employee {
 
 
 ### 2. 演变过程
+需求一：**提供一个加薪的功能，需要可以给某个员工加薪，也可以针对某个部门全员加薪**
+最粗暴的方式，就是直接针对员工和部门分别提供一个加薪函数：
+```
+public class Dept {
+	
+	// ...
 
+	/**
+	 * 给整个部门加薪
+	 */
+	public void raiseSalary(int amount) {
+		
+		for (Dept childDept : this.depts) {
+			childDept.raiseSalary(amount);
+		}
+		
+		for (Employee emp : this.employees) {
+			emp.raiseSalary(amount)
+		}
+	}
 
+}
+
+public class Employee {
+	// ...
+	
+	public void raiseSalary(int amount) {
+		// 给员工加薪
+		// ...
+	}
+
+}
+
+```
+
+需求二：**希望能提供统一的api，方便调用者统一调用**
+上面这种方式有时对调用者会不太友好，比如有个client需要调用加薪这个功能，但是在加薪的前后又有一些自己的逻辑，那么它要么定义两个方法：
+```
+public void addSalary(Employee emp) {
+	// 一些client自己的前置处理
+	// ...
+	
+	// 加薪
+	emp.raiseSalary(...);
+	
+	// 一些client自己的后置处理
+	// ...
+}
+
+public void addSalary(Dept dept) {
+	// 一些client自己的前置处理
+	// ...
+	
+	// 加薪
+	dept.raiseSalary(...);
+	
+	// 一些client自己的后置处理
+	// ...
+}
+```
+
+如果只想写一个方法，就需要使用反射进行区分是Dept还是Employee：
+```
+public void addSalary(Object obj) {
+	// 一些client自己的前置处理
+	// ...
+	
+	// 加薪
+	if (obj instanceof Dept) {
+		((Dept)obj).raiseSalary(...);
+	} else {
+		((Employee)obj).raiseSalary(...);
+	}
+	
+	// 一些client自己的后置处理
+	// ...
+}
+```
+而且但凡是Employee和Dept同时具备的功能，都会引发这种问题。
+要解决需求二，即同一种功能两种不同实现带来的影响，使用一个简单的BA转换即可。
+```
+public interface Unit {
+	void raiseSalary(int amount);
+	
+	// 其他Dept和Employee的一些共同操作
+	// ...
+}
+
+public class Dept implements Unit {
+	
+	private List<Employee> employees;
+	
+	private List<Dept> depts;
+	
+	// ...
+
+}
+
+public class Employee implements Unit {
+	
+	// ...
+}
+
+```
+
+此时就解决了需求二所提出的问题。
 
 
 ### 3. 思路扩展
-组合模式本质只是在一种特定应用场景——树型结构下的BA转换。
+1. 并不是树形结构就适合组合模式
+在网上关于组合模式的博客中，也包括本文，很多都是用“组织和人”这种关系来讲解组合模式，其实这并不恰当。
+试想一下，如果严格套用组合模式的代码模型，本文例子中的代码将会变成这样：
+```
+public interface Unit {
+	// ...
+}
+
+public class Dept implements Unit {
+	// 当前部门的下属员工和其下属部门和不再分开存储
+	private List<Unit> units;
+	
+	// ...
+
+}
+
+public class Employee implements Unit {
+	
+	// ...
+}
+```
+
+此时如果要给部门下的所有部门执行XX操作，会发现代码要写成这样：
+```
+public class Dept implements Unit {
+	// 当前部门的下属员工和其下属部门和不再分开存储
+	private List<Unit> units;
+	
+	// ...
+
+	public void xxOperation() {
+		for (Unit unit : this.units) {
+			if (unit instanceof Dept) {
+				// XX操作
+				// ...
+			}
+		}
+	}
+}
+```
+
+而且只针对员工的操作也会被强制在Dept上实现一遍，否则也会出现上面这种问题。
+
+所以在树形结构中，对于叶子节点和非叶子节点的属性或行为，我们需要选择性的将他们相同的部分抽成统一的接口；而需要区别对待的地方，仍然要严格区分。
+从直观表现看，“组织”和“人”这两者就不会存在太多共同属性或行为，如果严格套用组合模式，往往会适得其反。只有“管理者”和“人”这种关系（管理者有很多下属，但他本身也是一个人），才是最适合使用组合模式的。
+所以在大部分实际情况中，我们都不会严格使用组合模式，而是使用组合模式的一些变种（部分使用）。
+
+这最终还是又回到了我们一直反复强调的结论：设计模式不能生搬硬套，必须根据自己的实际业务场景灵活使用。
+
+
+2. 组合模式本质只是在一种特定应用场景——树型结构下的BA转换。
+我们之前有讨论过，当B有多种实现时，可以使用BA转换，而且BA转换可以在运行时动态将B切换为另一种实现B1。
+组合模式的痛点，是需要将整体和部分统一对待，即隔离一种功能不同实现所带来的影响，这正式BA转换擅长的事情。
 当我们剖析的设计模式越来越多时，发现会越来越难吸取到新的东西。
 

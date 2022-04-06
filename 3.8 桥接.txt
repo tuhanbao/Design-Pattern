@@ -1,0 +1,303 @@
+### 1. 原始场景和代码
+> 桥接模式其实已经没有了讲的必要，在《2.6 参数化与反参数化》以及《3.3 生成器》中，已经有其完整说明，即将两个变化因子进行分离。
+所以如果已经深刻理解了参数化的同学，可以直接跳过此章节。
+
+我们需要画一些图形：包括圆，方形和三角形
+```
+public interface Shape {
+	void draw();
+}
+
+public class Circle implements Shape {
+	@Override
+	public void draw() {
+		// 画一个环
+		drawRing(...)
+	}
+}
+
+public class Rectangle implements Shape {
+	@Override
+	public void draw() {
+		// 画四条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+public class Triangle implements Shape {
+	@Override
+	public void draw() {
+		// 画三条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+```
+### 2. 演变过程
+需求一：**所有的形状都有三种颜色：红色，蓝色**
+老实说，当我看到这个需求，第一反应是最简单粗暴的方式应该是将颜色作为一个Shape的一个属性。这可能是因为例子过于简单或是个人习惯导致的，但为了说明桥接模式说解决的问题，暂且认为我写成了下面这样：
+```
+public interface Shape {
+	void draw();
+}
+
+public class Circle implements Shape {
+	@Override
+	public void draw() {
+		// 画一个环
+		drawRing(...)
+	}
+}
+
+public class RedCircle extends Circle {
+	@Override
+	public void draw() {
+		super.draw();
+		// 上色
+		drawRedColor(...)
+	}
+}
+
+public class BlueCircle extends Circle {
+		@Override
+	public void draw() {
+		super.draw();
+		// 上色
+		drawBlueColor(...)
+	}
+}
+
+// 下面雷同
+public class Rectangle implements Shape {
+	// ...
+}
+
+public class RedRectangle implements Rectangle {
+	// ...
+}
+
+public class BlueRectangle implements Rectangle {
+	// ...
+}
+
+public class Triangle implements Shape {
+	// ...
+}
+
+public class RedTriangle implements Triangle {
+	// ...
+}
+
+public class BlueTriangle implements Triangle {
+	// ...
+}
+```
+
+这是一种明显会导致类过分膨胀的方式，如果形状种类和颜色多了起来，会成为噩梦。
+使用参数化将这两个导致类膨胀的变化因子进行隔离，可以很简单的就变成了这样：
+```
+public interface Shape {
+	void draw();
+}
+
+public interface Paint {
+	void drawColor();
+}
+
+public class Circle implements Shape {
+	private Paint paint;
+	
+	@Override
+	public void draw() {
+		// 画一个环
+		drawRing(...);
+		paint.drawColor();
+	}
+}
+
+public class Rectangle implements Shape {
+	private Paint paint;
+	
+	@Override
+	public void draw() {
+		// 画四条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+		paint.drawColor();
+	}
+}
+
+public class Triangle implements Shape {
+	private Paint paint;
+	
+	@Override
+	public void draw() {
+		// 画三条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+		paint.drawColor();
+	}
+}
+
+public class RedPaint implements Paint {
+	@Override
+	public void drawColor() {
+		// 上红色
+		drawRedColor(...);
+	}
+}
+
+public class BluePaint implements Paint {
+	@Override
+	public void drawColor() {
+		// 上红色
+		drawBlueColor(...);
+	}
+}
+```
+
+
+### 3. 思路扩展
+1. 抽象和实现的分离
+桥接模式的定义是：将抽象化与实现化解耦，使得二者可以独立变化
+我一直不太明白“抽象”和“实现”分别是什么概念。拿上面例子来说，涂色和画线都是画出一个Shape的必要步骤，我不知道该如何区分哪个是抽象部分，哪个是实现部分。
+桥接模式其实并非是只有抽象和实现的分离，任何两个搅合在一起的变化因子都可以使用这种思路，谁是抽象，谁是实现并无关系。
+比如上面的例子，我一样可以把划线的部分踢出去：
+```
+public interface Shape {
+	void draw();
+}
+
+public interface Style {
+	void drawShape();
+}
+
+
+public class RedShape implements Shape {
+	private Style style;
+	
+	@Override
+	public void draw() {
+		style.drawShape();
+		// 上色
+		drawRedColor(...)
+	}
+}
+
+public class BlueShape extends Circle {
+	private Style style;
+	
+	@Override
+	public void draw() {
+		style.drawShape();
+		// 上色
+		drawBlueColor(...);
+	}
+}
+
+public class Circle implements Style {
+	@Override
+	public void drawShape() {
+		// 画一个环
+		drawRing(...);
+	}
+}
+
+public class Rectangle implements Style {
+	@Override
+	public void drawShape() {
+		// 画四条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+public class Triangle implements Style {
+	@Override
+	public void drawShape() {
+		// 画三条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+```
+
+我们还可以把两者都踢出去，Shape则成了一个具体类，只不过这种方式并不会带来更大收益，只是一种选择而已:
+
+```
+public interface Paint {
+	void drawColor();
+}
+
+public interface Style {
+	void drawShape();
+}
+
+public class Shape {
+	private Style style;
+	
+	private Paint paint;
+	
+	public void draw() {
+		this.style.drawShape();
+		this.paint.drawColor();
+	}
+}
+
+public class Circle implements Style {
+	@Override
+	public void drawShape() {
+		// 画一个环
+		drawRing(...);
+	}
+}
+
+public class Rectangle implements Style {
+	@Override
+	public void drawShape() {
+		// 画四条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+public class Triangle implements Style {
+	@Override
+	public void drawShape() {
+		// 画三条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+public class RedPaint implements Paint {
+	@Override
+	public void drawColor() {
+		// 上红色
+		drawRedColor(...);
+	}
+}
+
+public class BluePaint implements Paint {
+	@Override
+	public void drawColor() {
+		// 上红色
+		drawBlueColor(...);
+	}
+}
+```
+
