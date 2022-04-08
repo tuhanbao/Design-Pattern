@@ -1,0 +1,241 @@
+### 1. 原始场景和代码
+装饰模式其实和桥接模式都是参数化的典型例子，我们这里依然以桥接模式的需求作为原始场景：
+我们需要画一些图形：包括圆，方形和三角形
+```
+public interface Shape {
+	void draw();
+}
+
+// 假设drawLine, drawRing是一些公共的工具类方法。
+public class Circle implements Shape {
+	@Override
+	public void draw() {
+		// 画一个环
+		drawRing(...)
+	}
+}
+
+public class Rectangle implements Shape {
+	@Override
+	public void draw() {
+		// 画四条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+public class Triangle implements Shape {
+	@Override
+	public void draw() {
+		// 画三条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+```
+
+### 2. 演变过程
+需求一：**我们需要增加一些后操作，诸如上色，图阴影或者加花边。**
+我们发现，这个和桥接模式的需求一模一样，沿用桥接模式的代码就可以了。
+而且我们知道，会有三种方式进行选择。
+
+需求二：**我们希望可以共用shape实例**
+这条需求是装饰模式最区别于其他参数化设计的地方，从装饰模式的名字看：他的两个变化因子，一个是主体抽象，而另外一个变化因子则隶属于主体抽象，譬如一些修饰属性或行为。
+根据我们在桥接模式中的讨论，选择将抽象主体shape参数化是更好的选择（见桥接模式中一章）：
+```
+// 完全拷贝了桥接模式中思路扩展中的方式二
+public interface Shape {
+	void draw();
+}
+
+public interface Style {
+	void drawShape();
+}
+
+public abstract class AbstractShape implements Shape {
+	protected Style style;
+	
+	public AbstractShape(Style style) {
+		this.style = style;
+	}
+	
+	@Override
+	public void drawShowy() {
+		this.style.drawShape();
+		postProcess();
+	}
+	
+	public abstract void postProcess();
+}
+
+public class ColorPaintShape extends AbstractShape {
+	private Color color;
+	
+	@Override
+	public void postProcess() {
+		// 上色
+		drawColor(this.color);
+	}
+}
+
+public class ShadowerShape extends AbstractShape {
+	@Override
+	public void postProcess() {
+		// 图上阴影的具体操作
+		// ...
+	}
+}
+
+public class LacePaintShape extends AbstractShape {
+	private Color color;
+	
+	@Override
+	public void postProcess() {
+		// 画上不同颜色花边的处理操作
+		drawLace(this.color);
+	}
+}
+
+
+public class Circle implements Style {
+	@Override
+	public void drawShape() {
+		// 画一个环
+		drawRing(...);
+	}
+}
+
+public class Rectangle implements Style {
+	@Override
+	public void drawShape() {
+		// 画四条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+public class Triangle implements Style {
+	@Override
+	public void drawShape() {
+		// 画三条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+```
+
+需求三：**对旧代码尽量不要有影响**
+
+上面的方式修改后对以前的Shape使用者很不友好，因为以前使用Circle、Rectangle和Triangle的地方，可能我不需要增强功能，也要修改代码
+```
+// 比如以前一个函数
+public void test(Shape shape) {
+	// ...
+}
+
+// 如果不使用增强功能，则需要改为：
+public void test(Style style) {
+	// ...
+}
+// 这样对很多代码都有影响
+```
+
+要解决这个问题也很简单，可以直接让Style继承Shape即可，当然，更简单的方式，就是直接复用Shape这个接口:
+```
+```
+// 完全拷贝了桥接模式中思路扩展中的方式二，仅仅合并了两个接口而已
+public interface Shape {
+	void draw();
+}
+
+public abstract class AbstractShape implements Shape {
+	protected Shape shape;
+	
+	public AbstractShape(Shape shape) {
+		this.shape = shape;
+	}
+	
+	@Override
+	public void drawShowy() {
+		this.shape.drawShape();
+		postProcess();
+	}
+	
+	public abstract void postProcess();
+}
+
+public class ColorPaintShape extends AbstractShape {
+	private Color color;
+	
+	@Override
+	public void postProcess() {
+		// 上色
+		drawColor(this.color);
+	}
+}
+
+public class ShadowerShape extends AbstractShape {
+	@Override
+	public void postProcess() {
+		// 图上阴影的具体操作
+		// ...
+	}
+}
+
+public class LacePaintShape extends AbstractShape {
+	private Color color;
+	
+	@Override
+	public void postProcess() {
+		// 画上不同颜色花边的处理操作
+		drawLace(this.color);
+	}
+}
+
+
+public class Circle implements Shape {
+	@Override
+	public void draw() {
+		// 画一个环
+		drawRing(...);
+	}
+}
+
+public class Rectangle implements Shape {
+	@Override
+	public void draw() {
+		// 画四条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+public class Triangle implements Shape {
+	@Override
+	public void draw() {
+		// 画三条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+```
+
+装饰者的代码模型便出来了。
+
+
+### 3. 思路扩展
+1. 装饰和桥接
+两者本质都是抽象参数化，只是应用场景略有不同。
+很多设计模式只是相同的设计手段在不同应用场景下的变换而已。

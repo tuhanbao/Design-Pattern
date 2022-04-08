@@ -1,13 +1,11 @@
 ### 1. 原始场景和代码
-> 桥接模式其实已经没有了讲的必要，在《2.6 参数化与反参数化》以及《3.3 生成器》中，已经有其完整说明，即将两个变化因子进行分离。
-所以如果已经深刻理解了参数化的同学，可以直接跳过此章节。
-
 我们需要画一些图形：包括圆，方形和三角形
 ```
 public interface Shape {
 	void draw();
 }
 
+// 假设drawLine, drawRing是一些公共的工具类方法。
 public class Circle implements Shape {
 	@Override
 	public void draw() {
@@ -46,6 +44,7 @@ public interface Shape {
 	void draw();
 }
 
+// 假设drawLine, drawRing，drawColor是一些公共的工具类方法。
 public class Circle implements Shape {
 	@Override
 	public void draw() {
@@ -59,7 +58,7 @@ public class RedCircle extends Circle {
 	public void draw() {
 		super.draw();
 		// 上色
-		drawRedColor(...)
+		drawColor(Color.RED)
 	}
 }
 
@@ -68,7 +67,7 @@ public class BlueCircle extends Circle {
 	public void draw() {
 		super.draw();
 		// 上色
-		drawBlueColor(...)
+		drawColor(Color.BLUE)
 	}
 }
 
@@ -99,7 +98,7 @@ public class BlueTriangle implements Triangle {
 ```
 
 这是一种明显会导致类过分膨胀的方式，如果形状种类和颜色多了起来，会成为噩梦。
-使用参数化将这两个导致类膨胀的变化因子进行隔离，可以很简单的就变成了这样：
+使用参数化将这两个导致类膨胀的变化因子进行隔离，可以变成这样：
 ```
 public interface Shape {
 	void draw();
@@ -151,7 +150,7 @@ public class RedPaint implements Paint {
 	@Override
 	public void drawColor() {
 		// 上红色
-		drawRedColor(...);
+		drawColor(Color.RED);
 	}
 }
 
@@ -159,103 +158,40 @@ public class BluePaint implements Paint {
 	@Override
 	public void drawColor() {
 		// 上红色
-		drawBlueColor(...);
+		drawColor(Color.BLUE);
 	}
 }
 ```
 
-
-### 3. 思路扩展
-1. 抽象和实现的分离
-桥接模式的定义是：将抽象化与实现化解耦，使得二者可以独立变化
-我一直不太明白“抽象”和“实现”分别是什么概念。拿上面例子来说，涂色和画线都是画出一个Shape的必要步骤，我不知道该如何区分哪个是抽象部分，哪个是实现部分。
-桥接模式其实并非是只有抽象和实现的分离，任何两个搅合在一起的变化因子都可以使用这种思路，谁是抽象，谁是实现并无关系。
-比如上面的例子，我一样可以把划线的部分踢出去：
+到这里其实桥接模式的模型就已经出来了，当然为了复用一些代码，我们可以抽一个AbstractShape类出来，共用一些逻辑：
 ```
 public interface Shape {
 	void draw();
 }
 
-public interface Style {
-	void drawShape();
-}
-
-
-public class RedShape implements Shape {
-	private Style style;
-	
-	@Override
-	public void draw() {
-		style.drawShape();
-		// 上色
-		drawRedColor(...)
-	}
-}
-
-public class BlueShape extends Circle {
-	private Style style;
-	
-	@Override
-	public void draw() {
-		style.drawShape();
-		// 上色
-		drawBlueColor(...);
-	}
-}
-
-public class Circle implements Style {
-	@Override
-	public void drawShape() {
-		// 画一个环
-		drawRing(...);
-	}
-}
-
-public class Rectangle implements Style {
-	@Override
-	public void drawShape() {
-		// 画四条线
-		drawLine(...);
-		drawLine(...);
-		drawLine(...);
-		drawLine(...);
-	}
-}
-
-public class Triangle implements Style {
-	@Override
-	public void drawShape() {
-		// 画三条线
-		drawLine(...);
-		drawLine(...);
-		drawLine(...);
-	}
-}
-```
-
-我们还可以把两者都踢出去，Shape则成了一个具体类，只不过这种方式并不会带来更大收益，只是一种选择而已:
-
-```
 public interface Paint {
 	void drawColor();
 }
 
-public interface Style {
-	void drawShape();
-}
-
-public class Shape {
-	private Style style;
+public abstract class AbstractShape implements Shape {
+	protected Paint paint;
 	
-	private Paint paint;
+	public AbstractShape(Paint paint) {
+		this.paint = paint;
+	}
 	
+	@Override
 	public void draw() {
-		this.style.drawShape();
+		this.drawShape();
 		this.paint.drawColor();
 	}
+	
+	public abstract void drawShape();
 }
 
-public class Circle implements Style {
+public class Circle extends AbstractShape {
+	private Paint paint;
+	
 	@Override
 	public void drawShape() {
 		// 画一个环
@@ -263,7 +199,9 @@ public class Circle implements Style {
 	}
 }
 
-public class Rectangle implements Style {
+public class Rectangle extends AbstractShape {
+	private Paint paint;
+	
 	@Override
 	public void drawShape() {
 		// 画四条线
@@ -274,7 +212,9 @@ public class Rectangle implements Style {
 	}
 }
 
-public class Triangle implements Style {
+public class Triangle extends AbstractShape {
+	private Paint paint;
+	
 	@Override
 	public void drawShape() {
 		// 画三条线
@@ -288,7 +228,7 @@ public class RedPaint implements Paint {
 	@Override
 	public void drawColor() {
 		// 上红色
-		drawRedColor(...);
+		drawColor(Color.RED);
 	}
 }
 
@@ -296,8 +236,382 @@ public class BluePaint implements Paint {
 	@Override
 	public void drawColor() {
 		// 上红色
-		drawBlueColor(...);
+		drawColor(Color.BLUE);
 	}
 }
 ```
 
+当然，我们并不是必须像上面这样做，这不是桥接模式强调的重点。
+
+### 3. 思路扩展
+1. 桥接模式我们一直在用。
+其实按照正常思维，我们并不会写成这样，因为上色这个动作还没有必要抽象到类层面的必要，真实的代码很可能是这样：
+```
+public interface Shape {
+	void draw();
+}
+
+public abstract class AbstractShape implements Shape {
+	protected Color color;
+	
+	public AbstractShape(Color color) {
+		this.color = color;
+	}
+	
+	@Override
+	public void draw() {
+		this.drawShape();
+		drawColor(this.color);
+	}
+	
+	public abstract void drawShape();
+}
+
+public class Circle extends AbstractShape {
+	private Paint paint;
+	
+	@Override
+	public void drawShape() {
+		// 画一个环
+		drawRing(...);
+	}
+}
+
+public class Rectangle extends AbstractShape {
+	private Paint paint;
+	
+	@Override
+	public void drawShape() {
+		// 画四条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+public class Triangle extends AbstractShape {
+	private Paint paint;
+	
+	@Override
+	public void drawShape() {
+		// 画三条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+```
+
+很多讲解桥接模式都会用到形状和颜色的例子，只是因为场景过于简单，严格套用桥接模式的代码模式会显得很大材小用。
+如果我们真的想让代码变得跟原著中的代码模型一样，而且合情合理，可以试着加入这么一条需求：
+
+需求二： **在画完形状后，有时候我们会上色，但有时候会蒙上一层阴影，有时候会添上一层花边，后面还可能会有其他后续操作**
+此时，按照之前的思路，我们需要将上色，图阴影和加花边抽象为一个概念，然后和“画形状”进行分离。代码大概率会变成如下：
+```
+public interface Shape {
+	void draw();
+}
+
+/**
+ * 后处理的接口
+ */
+public interface PostProcessor {
+	void postProcess();
+}
+
+public class AbstractShape implements Shape {
+	protected PostProcessor processor;
+	
+	public AbstractShape(PostProcessor processor) {
+		this.processor = processor;
+	}
+	
+	@Override
+	public void draw() {
+		this.drawShape();
+		this.processor.postProcess();
+	}
+	
+	public abstract void drawShape();
+}
+
+public class Circle extends AbstractShape {
+	private Paint paint;
+	
+	@Override
+	public void drawShape() {
+		// 画一个环
+		drawRing(...);
+	}
+}
+
+public class Rectangle extends AbstractShape {
+	private Paint paint;
+	
+	@Override
+	public void drawShape() {
+		// 画四条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+public class Triangle extends AbstractShape {
+	private Paint paint;
+	
+	@Override
+	public void drawShape() {
+		// 画三条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+public class ColorPaint implements PostProcessor {
+	private Color color;
+	
+	@Override
+	public void postProcess() {
+		// 上色
+		drawColor(this.color);
+	}
+}
+
+public class Shadower implements PostProcessor {
+	@Override
+	public void postProcess() {
+		// 图上阴影的具体操作
+		// ...
+	}
+}
+
+public class LacePaint implements PostProcessor {
+	private Color color;
+	
+	@Override
+	public void postProcess() {
+		// 画上不同颜色花边的处理操作
+		drawLace(this.color);
+	}
+}
+```
+
+如果不加需求二，前面的代码示例算不算是桥接模式呢？我想，应该是算的，将不同颜色抽象为一个Color属性，和将上色，图阴影，画花边抽象为“后处理”又有什么本质区别呢？只是根据需求场景作出的抽象高度不同而已。所以很多时候，我们给一个实体对象添加一个属性，就已经使用到了桥接模式的思想，只是场景过于简单，让我们忽略了其中的本质。
+王阳明讲“格物致知”，很多优美的代码，其中本身就蕴含了设计的本质。
+
+> 桥接模式其实已经在《2.6 参数化与反参数化》以及《3.3 生成器》中，已经有其完整说明，即将两个变化因子进行分离。
+
+2. 抽象和实现的分离
+桥接模式的定义是：将抽象化与实现化解耦，使得二者可以独立变化
+我一直不太明白“抽象”和“实现”分别是什么概念。拿上面的例子来说，涂色、加花边和画线都是画出最终Shape的步骤之一，我不知道该如何区分哪个是抽象部分，哪个是实现部分。
+桥接模式其实并非是只有抽象和实现的分离，任何两个搅合在一起的变化因子都可以使用这种思路，谁是抽象，谁是实现并无关系。
+比如上面的例子，我一样可以把的部分踢出去：
+```
+public interface Shape {
+	void draw();
+}
+
+public interface Style {
+	void drawShape();
+}
+
+public abstract class AbstractShape implements Shape {
+	protected Style style;
+	
+	public AbstractShape(Style style) {
+		this.style = style;
+	}
+	
+	@Override
+	public void drawShowy() {
+		this.style.drawShape();
+		postProcess();
+	}
+	
+	public abstract void postProcess();
+}
+
+public class ColorPaintShape extends AbstractShape {
+	private Color color;
+	
+	@Override
+	public void postProcess() {
+		// 上色
+		drawColor(this.color);
+	}
+}
+
+public class ShadowerShape extends AbstractShape {
+	@Override
+	public void postProcess() {
+		// 图上阴影的具体操作
+		// ...
+	}
+}
+
+public class LacePaintShape extends AbstractShape {
+	private Color color;
+	
+	@Override
+	public void postProcess() {
+		// 画上不同颜色花边的处理操作
+		drawLace(this.color);
+	}
+}
+
+
+public class Circle implements Style {
+	@Override
+	public void drawShape() {
+		// 画一个环
+		drawRing(...);
+	}
+}
+
+public class Rectangle implements Style {
+	@Override
+	public void drawShape() {
+		// 画四条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+public class Triangle implements Style {
+	@Override
+	public void drawShape() {
+		// 画三条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+```
+
+我们还可以把两者都踢出去，Shape则成了一个具体类：
+
+```
+public interface PostProcessor {
+	void postProcess();
+}
+
+public interface Style {
+	void drawShape();
+}
+
+public class Shape {
+	private Style style;
+	
+	private PostProcessor processor;
+	
+	public Shape(Style style, PostProcessor processor) {
+		this.style = style;
+		this.processor = processor;
+	}
+	
+	public void draw() {
+		this.style.drawShape();
+		this.processor.postProcess();
+	}
+}
+
+public class Circle implements Style {
+	@Override
+	public void drawShape() {
+		// 画一个环
+		drawRing(...);
+	}
+}
+
+public class Rectangle implements Style {
+	@Override
+	public void drawShape() {
+		// 画四条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+public class Triangle implements Style {
+	@Override
+	public void drawShape() {
+		// 画三条线
+		drawLine(...);
+		drawLine(...);
+		drawLine(...);
+	}
+}
+
+public class ColorPaint implements PostProcessor {
+	private Color color;
+	
+	@Override
+	public void postProcess() {
+		// 上色
+		drawColor(this.color);
+	}
+}
+
+public class Shadower implements PostProcessor {
+	@Override
+	public void postProcess() {
+		// 图上阴影的具体操作
+		// ...
+	}
+}
+
+public class LacePaint implements PostProcessor {
+	private Color color;
+	
+	@Override
+	public void postProcess() {
+		// 画上不同颜色花边的处理操作
+		drawLace(this.color);
+	}
+}
+```
+
+无论是将后处理抽出去（方式一），还是将画线抽出去（方式二），抑或是将两者都抽出去（方式三），这三种方式在设计思路上并没有区别，他们都有拆分开两个变化因子。三者在工作量上和复杂度也可以看出，几乎没有区别。
+
+3. 按照真实世界的对象关系进行抽象
+上面的三种方式其实有一些细微区别：
+
+比如我想画出一个红色的三角形和一个带阴影的三角形：
+方式一：
+new Triangle(new ColorPaint(Color.RED));
+new Triangle(new Shadower());
+方式二：
+new ColorPaintShape(new Triangle(), Color.RED);
+new ShadowerShape(new Triangle());
+方式三：
+new Shape(new Triangle(), new ColorPaint(Color.RED);
+new Shape(new Triangle(), new Shadower());
+
+如果两个三角形一模一样，是一个实例，而且红色三角形和阴影三角形需要同时存在（比如两个client，一个使用红色三角形，一个使用阴影三角形）呢？方式一无法做到，方式二和方式三则可以
+方式一：可以通过动态更改processor，但是无法做到红色的三角形和一个带阴影的三角形同时存在。
+Triangle triangle = new Triangle(new ColorPaint(Color.RED));
+triangle.setProcessor(new Shadower());
+方式二：可以做到
+Triangle triangle = new Triangle();
+new ColorPaintShape(triangle, Color.RED);
+new ShadowerShape(triangle);
+方式三：可以做到
+Triangle triangle = new Triangle();
+new Shape(triangle, new ColorPaint(Color.RED);
+new Shape(triangle, new Shadower());
+
+同理，如果我想画一个红色的三角形，和一个红色的圆，红色的ColorPaint是一个实例而且也要求红色三角形和红色圆同时存在，此时则轮到方式二无法做到了。
+如果红色的三角形，带阴影的三角形和红色的圆都想同时存在而且可以共用实例，此时就只有方式三可以做到了。
+
+最终选择仍然会回归到业务本身，就如人和名字的关系，大概率不会出现，一个人同时有两个名字的场景，但是两个人同时有同样的名字却非常常见；而像人跟房子这种关系（多个人可以同时拥有一套房，一个人同时也可以拥有多套房），在这三种方式中使用方式三则更合适。
+所以当我们在没有特殊需求而且不知道该选择何种代码模式时，选择更贴近于真实世界中对象关系的那一种即可，这种选择往往会有一些意想不到的收获。
+符合真实世界的抽象关系，更能兼容未来的扩展方向，这不仅仅局限于此处的选择，而是所有使用抽象设计的地方。
