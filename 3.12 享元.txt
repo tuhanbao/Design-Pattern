@@ -1,0 +1,141 @@
+### 1. 原始场景和代码
+有一家公司，有若干员工。在每接到一个新项目时，就会选择合适的人组建成一个独立的项目团队，每个人在项目中都会有自己的任务和角色。
+现在有个简单需求，要求可以随时查询任何一个项目的详细信息，包括项目组每个成员的具体信息，以及他在项目中的角色和任务。
+
+我们可以简单粗暴的实现为如下的样子：
+
+```
+public class Project {
+	private List<Member> members;
+	
+	public void addMember(Member member) {
+		// ...
+	}
+	
+	// ... 其他代码
+}
+
+public class Member {
+	// 工号
+	private int empNo;
+	// 姓名
+	private String name;
+	// 身份证号
+	private String idCardNo;
+	// 电话号码
+	private String tel;
+	// 入职日期
+	private Date entryDate;
+	// ... 还有很多个人信息
+	
+	// 项目任务
+	private Task task;
+	// 项目角色
+	private Role role;
+	
+	// ... 省略getter、setter等方法
+}
+
+```
+我们将整个需求中最重要的两个实体定义成如上代码所示的样子，然后做好相应的存储和查询功能即可:
+```
+// 存储
+Project project = new Project();
+
+Member member1 = new Member();
+member1.setTask(...);
+member1.setRole(...);
+member1.setEmpNo(...);
+// ... 其他属性设置
+project.addMember(member1);
+
+Member member2 = new Member();
+member2.setTask(...);
+member2.setRole(...);
+member2.setEmpNo(...);
+// ... 其他属性设置
+project.addMember(member2);
+
+// ...
+
+save(project);
+
+// 读取
+Project project = load(...)
+
+```
+
+
+### 2. 演变过程
+需求一：**假设人员信息不会存在更改，我们该如何减少内存**
+假设公司有100名员工，从成立到现在一共承接了1000个项目，平均每个项目投入10人，那么从内存占用上看，需要声明10000个member对象，但实际上这一万个member对象都是公司的100个人而已，无非是在每个项目的task和role不同而已。
+所以做一个简单的缓存共用，便可以节省大量内存：
+```
+public class Project {
+	private List<Member> members;
+	
+	public void addMember(Member member) {
+		// ...
+	}
+	
+	// ... 其他代码
+}
+
+public class Member {
+	// 只需存储一个工号即可
+	private int empNo;
+	
+	// 只是一个引用，并不会存储
+	private Employee emp;
+	
+	// 项目任务
+	private Task task;
+	// 项目角色
+	private Role role;
+	
+	public void setEmpNo() {
+		this.empNo = empNo;
+		this.emp = EmployeeFactory.getEmployee(empNo);
+	}
+	
+	// ... 省略getter、setter等方法
+}
+
+public class Employee {
+	// 工号
+	private int empNo;
+	// 姓名
+	private String name;
+	// 身份证号
+	private String idCardNo;
+	// 电话号码
+	private String tel;
+	// 入职日期
+	private Date entryDate;
+	// ... 还有很多个人信息
+}
+
+public class EmployeeFactory {
+	private static Map<Integer, Employee> employees;
+	
+	public static Employee getEmployee(int no) {
+		return employees.get(no);
+	}
+	
+	// ...
+}
+```
+经过这样的改造后，member对象依然会存在10000个，但是member的属性减少了很多，员工的个人信息都转移到了Employee对象中，而Employee对象只有100个，总内存占用会大大减少。而且经过如此改造后，再将这些信息进行持久化时，也会大大减少存储空间。
+
+### 3. 思路扩展
+1. 享元模式也不是设计模式
+和单例模式一样，享元模式也不是一种设计模式。它并不会带来额外的扩展性或代码复用，其核心目的也是性能上的考虑做了一些内存共用。
+这在本质上和单例一样：单例是共用一个对象的单个实例，享元是共用一个对象的多个实例。
+他们的重点都是让我们警惕那些没有必要的浪费，属于某种代码模式，但绝不是设计模式
+
+如果你有使用到java的枚举类型，或者刻意的使用map缓存一些对象实例进行公用，那么便用到了享元模式。
+我想，应该有很多程序员，都能在完全不了解享元模式的情况下运用好这种模式。
+
+2. 不仅仅是代码复用需要拆分，内存共用有时也需要。
+享元模式的核心只是内存的共用，其代码模型应该非常简单，但实际上GoF的《设计模式》原著中关于享元模式的代码结构却有点复杂。原因之一是它引入了内部状态和外部状态等概念。
+就如同本文例子中的Task和Role属性一样，他们并不属于员工的内部属性，而是员工在项目上的一些外部属性，如果将这两种属性搅合在一起，便无法做到内存共用。
