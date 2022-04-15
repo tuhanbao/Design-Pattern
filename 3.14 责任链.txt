@@ -1,0 +1,344 @@
+### 1. 原始场景和代码
+现在有个文件，要经过三个环节审批：
+第一个环节是秘书审核，需要修改一些文件内容；
+第二个环节是一个项目经理，需要他签字；
+第三个环节是财务部评审预算是否通过；
+当所有环节都通过后，这个文件就可以发布了。如果有一个环节没通过，则将文件打回。
+
+简单实现如下：
+```
+public class Test {
+	/**
+	 * 返回参数：false代表文件打回，true代表通过
+	 */
+	public boolean approval(Doc doc) {
+		// 项目经理签字
+		// 一些校对、签字的逻辑
+		some code...
+		
+		// 秘书检查，修改错别字，如果错的太多也可能打回
+		some code...
+		
+		// 财务部评审预算
+		some code...
+	}
+	
+}
+
+### 2. 演变过程
+需求一：**后面可能随时更改流程，有时候加一个新的流程，有时候减一个，有时候调整一下顺序。**
+这是一个很明显的依赖关系解耦的需求，需要ABs转换。
+而ABs转换首先需要通过BA转换将所有的B抽象到一个层次，而这里的B是一个一个的代码片段，我们需要将这些逻辑抽象为一个一个函数，在使用统一的接口承载即可。即：
+```
+
+public interface Processor {
+	boolean process(Doc doc);
+}
+
+public class PMSign implements Processor {
+	@Override
+	public boolean process(Doc doc) {
+		// 项目经理签字
+		// 一些校对、签字的逻辑
+		some code...
+	}
+}
+
+public class SecretaryReview implements Processor {
+	@Override
+	public boolean process(Doc doc) {
+		// 秘书检查，修改错别字，如果错的太多也可能打回
+		some code...
+	}
+}
+
+public class FinanceDepartmentCheck implements Processor {
+	@Override
+	public boolean process(Doc doc) {
+		// 财务部评审预算
+		some code...
+	}
+}
+
+public class Test {
+	private List<Processor> list;
+	
+	// ... 初始化
+	
+	/**
+	 * 返回参数：false代表文件打回，true代表通过
+	 */
+	public boolean approval(Doc doc) {
+		for (Processor processor : list) {
+			if (!processor.process(doc)) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	public void addProcessor(Processor processor) {
+		list.add(processor);
+	}
+	
+	public void removeProcessor(Processor processor) {
+		list.remove(processor);
+	}
+	
+	public void removeProcessor(int index) {
+		list.remove(index);
+	}
+	
+	public int indexOf(Processor processor) {
+		return list.indexOf(processor);
+	}
+	
+	public void insertProcessor(int index, Processor processor) {
+		list.add(index, processor);
+	}
+	
+}
+
+```
+一个ABs转换就完美的解决了需求一，这基本上已经能完成了责任链可以完成的事情，我们暂且称之为方式一。
+
+需求二：**有时候流程的顺序会存在一些依赖，比如秘书审核一般都在经理签字后面；有时候我们还会一次删除或增加一段流程；希望这些操作能方便一些。**
+这确实是一个很实际的问题。
+比如现在经理签字已经加入到了流程中，而且我们也能拿到经理签字的实例对象，按照方式一的代码，此时要加入秘书审核，代码很可能要写的比较复杂：
+```
+// 获取经理签字的流程实例
+Processor pmSign = ...;
+// Test类的实例
+Test test = ...
+int index = test.indexOf(pmSign);
+// 在经理签字后面增加秘书签字的流程
+test.insertProcessor(index + 1, new SecretaryReview());
+
+```
+
+如果要删除经理签字和秘书审核之间的所有流程，代码也比较复杂：
+```
+// 获取经理签字和秘书审核的流程实例
+Processor pmSign = ...;
+Processor secretaryReview = ...;
+// Test类的实例
+Test test = ...
+int from = test.indexOf(pmSign);
+int to = test.indexOf(secretaryReview);
+// 删除中间的整段流程
+for (int i = from + 1; i < to; i++) {
+	test.removeProcessor(from + 1);
+}
+```
+
+这些诉求其实是一个易用性或者性能上的问题，单纯的依靠某种设计手段或思想很难解决。如果了解过算法和数据结构的同学，会比较容易想到使用链表的方式。
+当然，并不是把Test中的list由ArrayList对象改成LinkedList，而是让每个Processor自带下一个Processor的引用：
+```
+public interface Processor {
+	boolean process(Doc doc);
+}
+
+public abstract AbstractProcessor implements Processor {
+	private Processor next;
+	
+	@Override
+	public boolean process(Doc doc) {
+		if (this.processInner(doc)) {
+			if (this.next != null) {
+				return this.next.process(doc);
+			} else {
+				return true;
+			}
+		} else {
+			return false;
+		}
+	}
+	
+	public abstract boolean processInner(Doc doc);
+	
+	// 插入下一个流程，并删除之前的流程
+	public void setNext(Processor next) {
+		this.next = next;
+	}
+
+	public Processor getNext() {
+		return this.next;
+	}
+	
+	// 在该流程链的末尾追加一个流程
+	public void addLast(Processor next) {
+		if (this.next == null) {
+			this.next = next;
+		} else {
+			this.next.addLast(next);
+		}
+	}
+	
+	// 插入下一个流程，之前的流程整体后移
+	public void insertNext(Processor next) {
+		next.addLast(this.next);
+		this.next = next;
+	}
+}
+
+
+public class PMSign extends AbstractProcessor {
+	@Override
+	public boolean processInner(Doc doc) {
+		// 项目经理签字
+		// 一些校对、签字的逻辑
+		some code...
+	}
+}
+
+public class SecretaryReview extends AbstractProcessor {
+	@Override
+	public boolean processInner(Doc doc) {
+		// 秘书检查，修改错别字，如果错的太多也可能打回
+		some code...
+	}
+}
+
+public class FinanceDepartmentCheck extends AbstractProcessor {
+	@Override
+	public boolean processInner(Doc doc) {
+		// 财务部评审预算
+		some code...
+	}
+}
+
+
+
+public class Test {
+	private Processor first;
+	
+	// ... 初始化
+	
+	/**
+	 * 返回参数：false代表文件打回，true代表通过
+	 */
+	public boolean approval(Doc doc) {
+		return first == null || first.process(doc);
+	}
+	
+	public void setFirstProcessor(Processor first) {
+		this.first = first;
+	}
+	
+	public void addProcessor(Processor processor) {
+		if (this.first == null) {
+			this.first = processor;
+		} else {
+			first.addLast(processor)
+		}
+	}
+	
+}
+```
+
+这样，再来实现需求二就会变得简单了。
+在经理签字后面增加秘书审核：
+```
+// 获取经理签字的流程实例
+Processor pmSign = ...;
+// 在经理签字后面增加秘书签字的流程
+pmSign.insertNext(new SecretaryReview());
+
+```
+
+删除经理签字和秘书审核之间的所有流程：
+```
+// 获取经理签字和秘书审核的流程实例
+Processor pmSign = ...;
+Processor secretaryReview = ...;
+pmSign.setNext(secretaryReview);
+```
+
+这种方式可以很好的解决需求二，也能同时满足需求一。这也正是责任链模式的代码结构。
+
+### 3. 思路扩展
+1. 责任链模式并不一定优于方式一。
+其实在完成需求一后的代码，就已经完全具备责任链模式的思想了，因为责任链模式最核心的步骤就是一次ABs转换。最后链表的改造仅仅是应用场景上的一个妥协。
+
+我们先初始化好一些预置对象，然后再分别看下两种方式在不同场景下的代码复杂度
+```
+Test test = new Test();
+Processor pmSign = new PMSign();
+Processor secretaryReview = new SecretaryReview();
+process fdCheck = new FinanceDepartmentCheck();
+```
+
+
+a. 初始化一套流程
+```
+// 方式一
+test.addProcessor(pmSign);
+test.addProcessor(secretaryReview);
+test.addProcessor(fdCheck);
+
+// 方式二
+test.addProcessor(pmSign);
+test.addProcessor(secretaryReview);
+test.addProcessor(fdCheck);
+```
+
+b. 在某个指定位置插入一个单流程
+```
+// 方式一
+test.addProcessor(index, processor);
+
+// 方式二如果要实现在指定位置插入流程的方法，肯定得增加一段类似于下面代码的逻辑，至于放在Test中还是Processor中区别不大。
+public void insertProcessor(int index, Processor processor) {
+	if (index == 0) {
+		processor.setNext(this.first);
+		this.first = processor;
+	} else {
+		int i = 1;
+		// 只是大概逻辑，暂不考虑越界，空指针等问题
+		Processor temp = this.first;
+		while (i < index) {
+			temp = temp.getNext();
+			i++;
+		}
+		processor.setNext(temp.getNext())
+		temp.setNext(processor);
+	}
+}
+```
+
+c. 删除某个指定位置的单流程
+```
+// 方式一
+test.removeProcessor(index);
+
+// 方式二，依然要增加下面一段逻辑
+public void removeProcessor(int index) {
+	// 只是大概逻辑，暂不考虑越界，空指针等问题
+	if (index == 0) {
+		this.first = this.first.next();
+	} else {
+		int i = 1;
+		Processor temp = this.first;
+		while (i < index) {
+			temp = temp.getNext();
+			i++;
+		}
+		temp.setNext(temp.getNext().getNext())
+	}
+}
+```
+
+其实不用再继续举例了，两种代码方式的区别与ArrayList和LinkedList的区别完全一样。
+如果在指定位置增加或删除，方式一占优；
+如果在某个特定流程的后面增加或删除，责任链模式占优；
+不过以上区别还好，大不了某种方式代码会多一些，但是只需要实现一遍，后续调用就很方便的，只是性能上确实存在一些区别。
+
+总体来说，在不考虑性能的情况下，两种方式我会倾向于“方式一”一些。
+方式一是集中式管理，我增删流程都是通过Test对象来控制。
+责任链模式则是分散式管理，增删流程需要先找到父节点，才能进行增删。
+而我们实际工作中，往往获取Test对象实例会稍微简单一些，因为他只有一个实例；而获取某个具体的流程实例则偏难，因为一个流程链往往有很多节点。
+打个比方，我们现在持有一个Processor，现在要获取在他前面第二个流程节点，我们要么使用双向链表，要么先通过Processor获取到Test对象，然后再根据坐标来获取他的前面第二个节点。
+
+当然，如果你的应用场景刚好符合责任链的代码模式，请尽管选择它。
+
+

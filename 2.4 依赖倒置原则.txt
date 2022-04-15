@@ -271,6 +271,8 @@ public class UserServiceImpl implements UserService {
 实际情况是:当需求发生变更时，我们修改的主体一定是ServiceImpl，而Service只是被动去做同步适配而已。更不用说调用Service的Controller类了，它并不会因为它是依赖的一个抽象接口Service而幸免于难。
 
 > Service类存在的必要性与实际项目有关，如果一个Service明显可能存在多个实现，比如将来要将本地调用的Service切换为远程调用的Service等，那么定义Service接口是有意义的。但大多数工程，Service永远都只有一个实现，这种情况下Service接口的定义纯属多余，它只会让你在每次修改ServiceImpl时，还多修改一次Service接口，除了让你多了一些代码产出，毫无意义。
+> 
+> 还有一种特殊的情况：当项目使用了基于接口的动态代理，Service接口的存在也是必要的。
 
 所以，接口有时候也并不一定比实现类稳定，它有时候甚至会毫无原则的跟随实现类变动。
 

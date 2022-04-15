@@ -1,0 +1,281 @@
+### 1. 原始场景和代码
+有一个api和一个调用者
+```
+public class API {
+	public void method() {
+		// ...
+	}
+}
+
+// 调用者
+public void test(API api) {
+	api.method();
+}
+
+```
+
+### 2. 演变过程
+需求一：**我想在method调用前进行计数，方便统计最终有多少次调用**
+假设计数的工具方法已经提供
+```
+public class CountUtil {
+	public static void addCount() {
+		// ... 
+	}
+}
+```
+那么，我们可以很轻易完成这个需求，没有比这更简单的方式了：
+```
+public class API {
+	public void method() {
+		CountUtil.addCount();
+		// 继续method的原有逻辑
+		// ...
+	}
+}
+```
+
+需求二：**在API类和调用者都不感知的情况下完成需求一**
+如果既不准修改API，也不准修改test函数，好像只有一种方法，使用继承模式的ACB转换：
+```
+public class API {
+	public void method() {
+		// ...
+	}
+}
+
+// 调用者, api传入的实际上是APIProxy对象
+public void test(API api) {
+	api.method();
+}
+
+public class APIProxy extends API {
+	@Override
+	public void method() {
+		CountUtil.addCount();
+		super.method();
+	}
+}
+
+```
+
+当然，我们还可以有另外一种选择，使用组合的方式：
+```
+public interface APIInterface {
+	void method();
+}
+
+public class API implements APIInterface {
+	@Override
+	public void method() {
+		// ...
+	}
+}
+
+// 调用者，api传入的实际上是APIProxy对象
+public void test(APIInterface api) {
+	api.method();
+}
+
+public class APIProxy implements APIInterface {
+	// 注意，此处api声明的类型是API具体类，而不是APIInterface。如果改成APIInterface，则非常趋近于装饰模式
+	private API api;
+	
+	@Override
+	public void method() {
+		CountUtil.addCount();
+		this.api.method();
+	}
+}
+
+```
+
+只不过这种方式，是没有严格遵守需求二的，毕竟我们动了API的代码，让他实现了APIInterface接口。
+所以，很多时候在使用代理模式的地方，我们都会一开始就将代码写成如下：
+```
+public interface APIInterface {
+	void method();
+}
+
+public class API implements APIInterface {
+	@Override
+	public void method() {
+		// ...
+	}
+}
+
+// 调用者
+public void test(APIInterface api) {
+	api.method();
+}
+
+```
+
+### 3. 思路扩展
+1. 代理模式的两面性
+假设上面例子中的API类有多种实现，而且控制功能也有多种实现时（比如在方法调用前增加日志打印，增加事务处理等），我们会发现代理模式的代码结构会和装饰模式趋近于相同。
+GoF的原话是，代理模式主要为了控制原对象的访问，而装饰模式主要为了增强原对象的功能。
+我个人其实不太认可这种说法，“控制访问”本身就是一种功能增强，两者此时可以说是完全一模一样，谈不上区别。
+此时代理模式和装饰模式一样，都是通过抽象参数化的手段，将两个变化因子拆开独立扩展。
+
+假设API就是一个具体的类，没有其他实现，控制功能也很单一（只有计数），也不会有其他实现。
+那么在没有需求二的前提下，最简单的方式是直接将控制功能增加在函数里即可，并没有使用代理模式的必要。所以此种情况使用代理模式，大都是此类场景：API类是一个远程实现，或者因为某某因素我们不能直接修改其代码等。
+此时代理模式趋近于一种ACB转换，使用C(代理类)隔离B的不可控性。
+
+2. 代理模式中的接口并不必须
+抽象一个公共接口，往往是为了屏蔽多种实现方式的差异。但使用代理模式的大部分情况都没有这种需求：调用者都是直接使用代理类，也不会在原始类和代理类之间动态切换。在这种场景下没有必要给原始类和代理类增加一个公共接口。
+值得一提的是，动态代理中有一种基于接口的实现方式，这种情况必须要求实现类有一个接口，这种属于特殊情况。
+
+3. 动态代理
+讲到代理模式，不得不提的是动态代理。
+笔者一直坚持讨论设计时不要掺杂一些具体的技术点。此处我仍然不会去深入讨论动态代理的一些实现细节，但是动态代理所使用到的AOP（面向切面编程）思想值得我们深入思考。
+
+因为spring的存在，java开发者其实很少直接使用代理模式，大都是使用spring的动态代理，即AOP。
+网上会有很多讨论AOP和OO（面向对象）的博客或文章，有些人会认为AOP违反了OO，或者认为AOP是和OO完全不同的两种编程思想。
+但我认为恰恰相反，AOP是OO的忠实追随者，而且是OOP的一种完美补充。
+
+试想一下，本文的例子，如果有很多类的函数都需要计数，应该怎么处理（spring的动态代理正是处理的这种场景）：
+```
+public class API1 {
+	public void method1() {
+		// ...
+	}
+	
+	public void method2() {
+		// ...
+	}
+	
+	// ...
+}
+
+public class API2 {
+	public void func1() {
+		// ...
+	}
+	
+	public void func2() {
+		// ...
+	}
+	
+	// ...
+}
+
+// ... 很多其他类
+```
+
+如果这些类可以抽象到同一个接口，我们可以使用装饰模式解决这种问题。
+可实际情况是这些类大都各不相干，根本无法将他们抽象到同一个接口，又该如何处理？
+此时我们无论是否使用代理模式，工作量都非常巨大，我们要么到每个需要计数的函数中去增加一行代码，要么给每一个类增加一个代理类。
+
+如果是一个接口的所有子类都要增加一段逻辑，我们可以增加一个基类，使用模板模式解决这个问题，不用每个子类都去修改代码。
+但是，我们要给所有不相干的类的函数增加一个切面功能（诸如计数、事务、日志打印等），即使我们封装的再好，也得去每个函数中增加一行代码。
+这些工作完全雷同，毫无技术性可言，OO最擅长的就是封装和复用这种相同的代码逻辑，可是在此处却无能为力。
+因为：在java中，我们无法将函数直接作为一个对象。
+
+试想，如果一个类的函数也能像对象一样使用，那么我们完全可以通过这种方式，一次性给所有的类的所有方法添加计数功能：
+```
+public static void addCountFunction(List<Class> list) {
+	for (Class clazz : list) {
+		addCountFunction(clazz);
+	}
+}
+
+private static void addCountFunction(Class clazz) {
+	for (Method method : class.getAllMethod()) {
+		// 在方法的第0行位置，插入一行代码
+		method.addCode(0, "CountUtil.addCount();\n");
+	}
+}
+
+```
+
+上面的代码很明显就是一种OO的思想：通过将同一类事物进行抽象并复用的过程。
+因为某些复杂原因，绝大部分语言都不支持这种操作，我们只是通过一些复杂的技术手段来实现类似于上面的功能，但是这种解决问题的思路却是如出一脉相承。
+java实现的动态代理，最终仍然是本文推演的两种方式，一种子类继承，一种组合复用。
+
+> java实现动态代理最核心的问题是要将这些不相干类的不同函数抽象到同一个平面统一处理，具体实现此处不再过多讨论，有兴趣的可以网上自行搜索。
+> 
+> 有很多高级语言都不支持直接将函数作为对象，我这里并没有责怪他们的意思，函数是否应该作为对象是一个非常复杂的问题，这里不做讨论。
+
+技术手段是可以通过模仿轻易学会的，而思想才是解决问题的本质。
+试想一下，如果java没有提供反射、字节码等动态代理需要的功能，我们该如何解决这种问题：
+我们要给成百上千个类增加相同的代码，我们希望后面可以轻易更改这些切面功能，又不希望这些切面代码污染我们的业务逻辑。
+我想我会给想要增加切面功能的函数定义一些标签，比如@Tag("count")，代表这个函数需要计数；@Tag("log")标签，则代表这个函数需要加日志拦截。
+在构建打包时，我会编写一个工具扫描源代码下的java文件，找到打标签的函数，去增加一些相应的代码。这些都是一些基本的文本操作，技术上实现并不会有太大难度。
+而且这个工具只会在构建时修改java文件再去编译，并不会影响到我们的代码仓库，业务人员也不感知。
+
+复用是一种思想，即使脱离了软件设计或技术，它依然存在而且可以发挥巨大力量。
+
+4. 顶级抽象：
+我们知道：把一类相同的事务根据我们的关注点抽取共性，剥离个性的过程叫抽象。
+如果是将两个毫不相干的事务做顶级抽象，则将会是一个很有意思的过程。
+比如张三和一张桌子。
+比如我只关注他**拥有**属性和行为，但不在乎这些属性和行为具体是什么时，那么抽象的结果是：他们都是一个拥有多个属性和多个行为的对象；最终抽象的结果就是类或者原型之类的对象。
+如果我们什么都不关注，则会将他们抽象为：他们都是物体；那么抽象出来的是和Object类似的东西。
+
+函数1和函数2，如果我们关注的是他们的行为逻辑：比如他们都是查询某种类型的管理员；那么我们很可能会进行一些函数拆解和公用。（参看参数化一章）
+如果我们不关注他们的逻辑本身，只是关注他们只是在做一件事，那么我们会将他们抽象为一个函数或行为的概念。
+
+每种语言对于这种顶级抽象的实现各不一样，拿java举例：
+- 对于对象而言
+如果什么都不关注，顶级抽象是Object类；
+如果只关注它具有一些属性和行为时，顶级抽象则是Class；而且java是通过组合，而非继承的方式描述的这种关系（class是对象类型的一个属性）；
+
+- 对于函数而言
+如果什么都不关注，对于python、javascript之类的语言，则非常简单，他们的函数本来就是一个对象，可以直接作为属性或传参。
+但是对于java而言，则非常复杂，函数的顶级抽象是Method类，但使用起来不方便；如果不想这样，则需要将他们改为具有相同名字的方法，然后使用一个接口进行承载。
+
+拿代码举例则是这样，比如我有三个函数，我们需要将他们抽象成一个东西使用：
+```
+public void method1(Object... args) { ... }
+public void method2(Object... args) { ... }
+public void method3(Object... args) { ... }
+
+
+// 第一种方式，使用Method类反射调用，
+public static void clientCall(Method method, Object... args) {
+	method.invoke(args);
+}
+// java通过反射获取Method还特别复杂，得先找到类，然后再找到Method.
+
+// 第二种方式，使用接口承载方法
+public interface Command {
+	void call(Object... args);
+}
+
+public class Command1 implements Command {
+	public void call(Object... args) {
+		// method1的逻辑
+	}
+}
+
+public class Command2 implements Command {
+	public void call(Object... args) {
+		// method2的逻辑
+	}
+}
+
+public class Command3 implements Command {
+	public void call(Object... args) {
+		// method3的逻辑
+	}
+}
+
+public static void clientCall(Command command, Object... args) {
+	command.call(args)
+}
+
+```
+
+如果拿javascript举例，则是这样：
+```
+function method1(args) { ... }
+function method2(args) { ... }
+function method3(args) { ... }
+
+
+// 直接调用即可，简单至极
+function clientCall(func) {
+	func();
+}
+```
