@@ -150,7 +150,6 @@ public void test(Style style) {
 
 要解决这个问题也很简单，可以直接让Style继承Shape即可，当然，更简单的方式，就是直接复用Shape这个接口:
 ```
-```
 // 完全拷贝了桥接模式中思路扩展中的方式二，仅仅合并了两个接口而已
 public interface Shape {
 	void draw();
