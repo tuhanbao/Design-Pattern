@@ -1,0 +1,119 @@
+### 1. 原始场景和代码
+现在需要模拟一个场景：主人只要一回家，小狗就会跑上来摇尾巴，小猫则会叫一声。
+```
+public class Master {
+	private Dog dog;
+	
+	private Cat cat;
+	
+	// 成员变量的初始化
+	// ...
+	
+	public void onHome() {
+		dog.wagTail();
+		cat.bark();
+	}
+}
+
+```
+
+### 2. 演变过程
+需求一：**主人现在装了一个感应灯，只要一开门，灯也会自动亮**
+比较简单，在原始代码上增加代码就可以了：
+```
+public class Master {
+	private Dog dog;
+	
+	private Cat cat;
+	
+	private Light light;
+	
+	// 成员变量的初始化
+	// ...
+	
+	public void onHome() {
+		dog.wagTail();
+		cat.bark();
+		light.up();
+	}
+}
+```
+
+需求二：**后续还会增加智能家电，比如一回家就能自动打开的空调，电视机；或许哪天还会再多养一只狗；**
+这是一种很明显的一多对依赖关系变化的场景，显然，我们并不希望每次增加或删除一条关系，都通过硬编码来改变我们的实现。
+通过ABs转换，将所有的对象抽象为一个共同的物体，然后使用集合进行管理即可：
+```
+public class Master {
+	private List<MyThing> things;
+	
+	// 成员变量的初始化
+	// ...
+	
+	public void onHome() {
+		for (MyThing thing : things) {
+			thing.doSomethingWhenIGoHome();
+		}
+	}
+	
+	public void addMyThing(MyThing thing) {
+		this.things.add(thing);
+	}
+}
+
+public interface MyThing {
+	void doSomethingWhenIGoHome();
+}
+
+public Dog implements MyThing {
+
+	// 其他代码
+	// ...
+	
+	@Override
+	public void doSomethingWhenIGoHome() {
+		this.wagTail();
+	}
+	
+}
+
+public Cat implements MyThing {
+
+	// 其他代码
+	// ...
+	
+	@Override
+	public void doSomethingWhenIGoHome() {
+		this.bark();
+	}
+	
+}
+
+public Light implements MyThing {
+
+	// 其他代码
+	// ...
+	
+	@Override
+	public void doSomethingWhenIGoHome() {
+		this.up();
+	}
+	
+}
+
+// 空调
+public AirConditioner implements MyThing {
+
+	// 其他代码
+	// ...
+	
+	@Override
+	public void doSomethingWhenIGoHome() {
+		this.turnOn();
+	}
+	
+}
+```
+
+
+### 3. 思路扩展
+观察者模式是一个最基本的ABs转换，所以在很多一对多的关系中都能看到它的影子，比如责任链模式，中介者模式。
