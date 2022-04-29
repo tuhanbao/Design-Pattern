@@ -1,0 +1,343 @@
+### 1. 原始场景和代码
+现在我们模拟一个HR招聘员工的场景，HR主要做三个事情：1. 从招聘渠道获取一个候选人；2.看下这个候选人是否符合条件；3. 如果符合条件则办理入职等后续手续。
+公司的招聘要求呢，也比较简单，只要有高中毕业证就可以。
+使用代码简单描述则是：
+```
+public class HRManager {
+	
+	/**
+     * 招聘一个合格的员工
+     */
+    public Employee recruit() {
+        // 从招聘网站，猎头处获取候选人
+        Person person = getNextPerson();
+        while (person != null) {
+            if (isQualified(person)) {
+                return checkIn(person);
+            }
+            person = getNextPerson();
+        }
+        return null;
+    }
+
+    /**
+     * 从招聘网站，猎头处获取候选人
+     */
+    private Person getNextPerson() {
+		// some code
+        return person;
+    }
+
+    /**
+     * 办理入职等手续，并返回入职成功的员工信息
+     */
+    private Employee checkIn(Person person) {
+		// some code
+        return employee;
+    }
+
+    /**
+     * 检查候选人是否合格
+     */
+    private boolean isQualified(Person person) {
+        // 判断person的学历是否超过或等于高中
+		// some code
+        return isQualified;
+    }
+
+}
+
+```
+
+
+### 2. 演变过程
+需求一：**公司有个A部门，主要干的是体力活，并不需要学历，只要身体强壮的男性即可。**
+由于HR部门是整个公司公用的，这里肯定不能因为A部门的特殊要求就改变整个公司的招聘策略。
+最简单的方式是，给A部门开一个后门，加一个特殊传参：
+```
+public class HRManager {
+
+    public Employee recruit() {
+        return recruit(false);
+    }
+
+    /**
+     * 招聘一个合格的员工
+     */
+    public Employee recruit(boolean isDepartmentA) {
+        // 从招聘网站，猎头处获取候选人
+        Person person = getNextPerson();
+        while (person != null) {
+            if (isQualified(person, isDepartmentA)) {
+                return checkIn(person);
+            }
+            person = getNextPerson();
+        }
+        return null;
+    }
+
+    /**
+     * 检查候选人是否合格
+     */
+    private boolean isQualified(Person person, boolean isDepartmentA) {
+        if (isDepartmentA) {
+            // 判断person是否是20~40岁的健壮男性
+            return isQualified;
+        } else {
+            // 判断person的学历是否超过或等于高中
+            return isQualified;
+        }
+    }
+	
+	// 其他代码
+	// ...
+
+}
+```
+
+需求二：**随着公司业务的发展和壮大，很多部门都开始有自己的特殊要求，部门B要求招的人必须是计算机软件工程专业，部门C要求必须是985院校....等等**
+如果继续使用需求一的方式，会发现代码会逐渐演变成如下：
+```
+public class HRManager {
+
+    /**
+     * 招聘一个合格的员工
+     */
+    public Employee recruit(int type) {
+        // 从招聘网站，猎头处获取候选人
+        Person person = getNextPerson();
+        while (person != null) {
+            if (isQualified(person, type)) {
+                return checkIn(person);
+            }
+            person = getNextPerson();
+        }
+        return null;
+    }
+
+    /**
+     * 检查候选人是否合格
+     */
+    private boolean isQualified(Person person, int type) {
+        boolean isQualified = false;
+        if (type == 1) {
+            // 判断person是否是20~40岁的健壮男性
+            return isQualified;
+        } else if (type == 2) {
+            // 判断person是否是软件工程专业
+            return isQualified;
+        } else if (type == 3) {
+            // 判断person是否是985院校毕业
+            return isQualified;
+        } else if (type == n) {
+            // ....等等
+            return isQualified;
+        } else {
+            // 判断person的学历是否超过或等于高中
+            return isQualified;
+        }
+    }
+	
+	// 其他代码
+	// ...
+
+}
+```
+
+演变到这里，其实已经直接可以套用函数级的BA转换了：
+```
+
+public interface RecruitStrategy {
+    boolean isQualified(Person person);
+}
+
+public class HRManager {
+	
+	/**
+     * 招聘一个合格的员工
+     */
+    public Employee recruit(RecruitStrategy strategy) {
+        // 从招聘网站，猎头处获取候选人
+        Person person = getNextPerson();
+        while (person != null) {
+            if (strategy.isQualified(person)) {
+                return checkIn(person);
+            }
+            person = getNextPerson();
+        }
+        return null;
+    }
+
+    /**
+     * 从招聘网站，猎头处获取候选人
+     */
+    private Person getNextPerson() {
+		// some code
+        return person;
+    }
+
+    /**
+     * 办理入职等手续，并返回入职成功的员工信息
+     */
+    private Employee checkIn(Person person) {
+		// some code
+        return employee;
+    }
+
+}
+
+// 只是举例，切勿按照此种方式命名一个类
+public class RecruitStrategy1 implements RecruitStrategy {
+	@Override
+	public boolean isQualified(Person person) {
+		// 判断person是否是20~40岁的健壮男性
+        return isQualified;
+	}
+}
+
+public class RecruitStrategy2 implements RecruitStrategy {
+	@Override
+	public boolean isQualified(Person person) {
+		// 判断person是否是软件工程专业
+        return isQualified;
+	}
+}
+
+// ...
+
+```
+
+这便是策略者模式的代码原型。
+使用策略者模式后的代码明显会更优雅一些，也更符合开闭原则：HRManager的代码变得简洁单一，它不再需要关心其他部门的各种要求，任何部门想怎么招聘就怎么招聘，只需要定义好策略传递给HRManager即可。
+
+但就我个人而言，在当前这种应用场景下，即使不做BA转换也是可以的。因为：
+1. type和招聘策略的关系不会动态变化，HRManager也没有特别稳定性的要求，使用最原始的if else只是代码丑陋一点而已；
+2. 而且两者的工作量不会有太大区别，比如新增一个招聘需求，前者需要增加一段ifelse分支一个，策略者模式则需要增加一个RecruitStrategy实现，代码量大致相同。
+假设有一大段ifelse的历史代码，未来也不会有太大改动，如果我们大动干戈将其整改为策略者模式，最终带来的好处可能无法弥补我们整改所花费的工作量。
+
+
+### 3. 思路扩展
+1. 策略者模式的本质
+策略者模式是一个最基本的函数级BA转换，只要涉及到消除函数内部的if else分支，都会出现策略者的影子。比如中介者模式，状态模式。
+
+2. 实际工作中的策略者模式
+实际工作中，我们有时候并不会严格按照策略者模式编写我们的代码。
+拿本章的需求举例则是如下：假设招聘需求是由公司统一管控的，分了高级软件开发，普通技工，高级技工等若干类型，部门可以根据自己的需求选择适合自己的工种进行招聘即可。
+此时Strategy类明显和HRManager类关联更为紧密，反而和部门这些Client角色关联不大。如果我们仍然严格使用策略者模式，部门就必须了解各种策略的区别，而且各个部门之间的策略大都相同，还很容易造成重复。此时使用HRManager统一管理招聘策略明显更好：
+
+```
+public class HRManager {
+	private static Map<Integer, RecruitStrategy> strategys = new HashMap<>();
+	
+	static {
+		strategys.put(1, new RecruitStrategy1());
+		strategys.put(1, new RecruitStrategy2());
+		strategys.put(1, new RecruitStrategy3());
+		...
+	}
+	
+	/**
+     * 招聘一个合格的员工
+     */
+    public Employee recruit(RecruitStrategy strategy) {
+        // 从招聘网站，猎头处获取候选人
+        Person person = getNextPerson();
+        while (person != null) {
+            if (strategy.isQualified(person)) {
+                return checkIn(person);
+            }
+            person = getNextPerson();
+        }
+        return null;
+    }
+	
+	public static RecruitStrategy getRecruitStrategy(int type) {
+		return strategys.get(type);
+	}
+
+	// ...
+}
+
+```
+
+部门招聘人员时则代码如下：
+```
+int type = ...
+RecruitStrategy strategy = HRManager.getRecruitStrategy(type);
+hrManager.recruit(strategy);
+```
+
+很显然，上面的代码有点啰嗦，还不如直接让部门传入type即可：
+```
+public class HRManager {
+	private static Map<Integer, RecruitStrategy> strategys = new HashMap<>();
+	
+	static {
+		strategys.put(1, new RecruitStrategy1());
+		strategys.put(1, new RecruitStrategy2());
+		strategys.put(1, new RecruitStrategy3());
+		...
+	}
+	
+	/**
+     * 招聘一个合格的员工
+     */
+    public Employee recruit(int type) {
+        // 从招聘网站，猎头处获取候选人
+        Person person = getNextPerson();
+        while (person != null) {
+            if (getRecruitStrategy(type).isQualified(person)) {
+                return checkIn(person);
+            }
+            person = getNextPerson();
+        }
+        return null;
+    }
+	
+	private static RecruitStrategy getRecruitStrategy(int type) {
+		return strategys.get(type);
+	}
+
+	// ...
+}
+
+```
+
+部门的调用代码则可以简化为
+```
+int type = ...
+hrManager.recruit(type);
+```
+
+从笔者的工作经验看，我们实际工作中使用策略者模式的场景，大都是需要集中管控。所以更多的时候我会使用优化后的策略者模式。
+而且，如果配合java的“类扫描”（参考工厂模式一章），代码将会更为简单，我们可以在新增一种策略的时候不改动任何其他类：
+```
+
+public interface RecruitStrategy {
+    boolean isQualified(Person person);
+
+	// 新增一个返回type的方法
+	int getType();
+}
+
+
+public class HRManager {
+	private static Map<Integer, RecruitStrategy> strategys = new HashMap<>();
+	
+	static {
+        // 扫描所有RecruitStrategy的实现类并实例化存入strategys中
+        for (Class<?> item : ClazzUtil.getAllInterface(RecruitStrategy.class)) {
+            try {
+                RecruitStrategy recruitStrategy = (RecruitStrategy)item.newInstance();
+                strategys.put(recruitStrategy.getType(), recruitStrategy);
+            } catch (Exception e) {
+                // ...
+            }
+        }
+    }
+	
+
+	// 其他代码沿用
+}
+
+```

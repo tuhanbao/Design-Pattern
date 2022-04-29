@@ -1,0 +1,343 @@
+### 1. 原始场景和代码
+有个Robot类，假设它有很多个属性，其中有一个是int型的属性state；
+```
+public class Robot {
+	private int state;
+	
+	// 其他代码以及getter和setter方法
+	// ...
+}
+```
+现在有个场景，我们希望一个Robot实例在执行一些操作后，可以把状态还原到执行前的值。**
+我们使用test方法模拟client角色，简单实现则是如下：
+```
+// 方式一： 依赖关系
+public void test(Robot robot) {
+	int oldState = robot.getState();
+	// 一些对robot的操作
+	// some code 
+	robot.setState(oldState);
+}
+```
+
+或者
+```
+// 方式二：组合关系
+public class Robot {
+	private int state;
+	
+	private int oldState;
+
+	// 增加两个方法：备份和恢复
+	public void backup() {
+		this.oldState = this.state;
+	}
+	
+	public void recover() {
+		this.state = this.oldState;
+	}
+
+	
+	// 其他代码
+	// ...
+}
+
+// client
+public void test(Robot robot) {
+	robot.backup();
+	// 一些对robot的操作
+	// some code 
+	robot.recover();
+}
+
+```
+
+方式一是依赖关系，方式二是组合关系；这里我们会选择方式一，因为一旦选择方式二，有些场景将会很难实现。
+这一点会留在演变过程中讲到。
+
+### 2. 演变过程
+需求一：**备份的时候可能不仅仅只还原state一个属性，还需要备份它的x, y坐标**
+我们只需要在方式一的基础上稍作修改即可
+```
+// 方式一：基本模式
+public void test(Robot robot) {
+	int oldState = robot.getState();
+	int oldX = robot.getX();
+	int oldY = robot.getY();
+    // 一些对robot的操作
+	// some code 
+	robot.setState(oldState);
+	robot.setX(oldX);
+	robot.setY(oldY);
+}
+```
+
+我们可以优化一下，将备份和恢复封装起来，方便其他调用者复用，可以改成如下：
+
+```
+// 方式一：复用模式
+public class RobotBackupInfo {
+	private int state, x, y;
+	
+	// getter和setter
+}
+
+public void test(Robot robot) {
+	RobotBackupInfo backupInfo = backup(robot);
+    // 一些对robot的操作
+	// some code
+	recover(backupInfo, robot);
+}
+
+public static RobotBackupInfo backup(Robot robot) {
+	RobotBackupInfo backupInfo = new RobotBackupInfo();
+	backupInfo.setState(robot.getState());
+	backupInfo.setX(robot.getX());
+	backupInfo.setY(robot.getY());
+	
+}
+
+public static void recover(RobotBackupInfo backupInfo, Robot robot) {
+	robot.setState(backupInfo.getState());
+	robot.setX(backupInfo.getX());
+	robot.setY(backupInfo.getY());
+}
+
+```
+
+至此，整个需求就完成了。但是，原著中的备忘录模式并非如此，如果严格按照备忘录模式的代码结构，代码应该如下：
+
+```
+// 方式一：备忘录模式
+public class RobotBackupInfo {
+	private int state, x, y;
+	
+	// getter和setter
+}
+
+public class Robot {
+	private int state, x, y;
+
+	// 增加两个方法：备份和恢复
+	public RobotBackupInfo backup() {
+		RobotBackupInfo backupInfo = new RobotBackupInfo();
+		backupInfo.setState(robot.getState());
+		backupInfo.setX(robot.getX());
+		backupInfo.setY(robot.getY());
+	}
+	
+	public void recover(RobotBackupInfo backupInfo) {
+		robot.setState(backupInfo.getState());
+		robot.setX(backupInfo.getX());
+		robot.setY(backupInfo.getY());
+	}
+
+	
+	// 其他代码
+	// ...
+}
+
+
+public void test(Robot robot) {
+	RobotBackupInfo backupInfo = robot.backup();
+	// 一些对robot的操作
+	// some code
+	robot.recover(backupInfo);
+}
+
+```
+
+很明显，备忘录模式仅仅是将备份和恢复的代码从外面移到了Robot内部，没有太大区别。
+值得注意的是备忘录模式依然选择的是依赖关系，即本章开头讨论的方式一，而不是组合关系；如果改成组合方式，则代码如下：
+
+```
+// 方式二
+public class RobotBackupInfo {
+	private int state, x, y;
+	
+	// getter和setter
+}
+
+public class Robot {
+	private int state, x, y;
+	
+	private RobotBackupInfo backupInfo;
+	
+	public void doSomething() {
+		// ...
+	}
+
+	public void backup() {
+		this.backupInfo.setState(robot.getState());
+		this.backupInfo.setX(robot.getX());
+		this.backupInfo.setY(robot.getY());
+	}
+	
+	public void recover() {
+		robot.setState(this.backupInfo.getState());
+		robot.setX(this.backupInfo.getX());
+		robot.setY(this.backupInfo.getY());
+	}
+
+	
+	// 其他代码
+	// ...
+}
+
+
+public void test(Robot robot) {
+	robot.backup();
+	// 一些对robot的操作
+	// some code
+	robot.recover();
+}
+```
+
+此时方式一和方式二的区别则体现的更为明显。
+
+比如，后期我们很可能出现这些类似的需求：
+1. 要求可以多次备份，并在某一时刻选择恢复到任一备份状态；
+2. robot1的备份可以用来恢复robot2；
+
+如果使用方式一的复用模式或备忘录模式，都能轻易实现，这里以备忘录模式为例；
+```
+RobotBackupInfo backupInfo1 = robot.backup();
+// 一些对robot的操作
+// some code
+
+RobotBackupInfo backupInfo2 = robot.backup();
+// 一些对robot的操作
+// some code
+
+// 可以还原至任一备份状态
+robot.recover(backupInfo1);
+// 可以让其他机器人使用我的备份
+Robot robot2 = ...
+robot2.recover(backupInfo2);
+```
+
+但如果使用方式二，则很难做到。
+
+
+
+### 3. 思路扩展
+1. “一段逻辑应该放在哪里”
+笔者刚开始接触设计模式时，非常看不起备忘录模式。主要原因是其过于简单，我都不明白这种“弱智”模式为什么会有存在的必要；即使随便找个从来没了解过设计模式的新手，告诉他说我要做一个备份还原的功能，我相信绝大部分人一定可以写出来。
+如果仅从备忘录完成的功能看，这个模式确实没有太多值得学习的地方，不学也会。
+但是如果我们仔细比较各种不同的备忘录实现代码，会有很多值得学习的地方：
+
+方式一的基本模式和复用模式：明显后者更好。比如再增加一个备份属性，基本模式中所有调用者都需要修改代码；而后者只需要改两个公共方法。
+方式一的复用模式和备忘录模式：两者区别不大，甚至很多时候不用计较。但两者确实存在一些细微区别，比如Robot增加了一个属性，需要备份。前者需要修改Robot、RobotBackupInfo以及实现备份和恢复方法的工具类；而后者则只需要修改Robot和RobotBackupInfo。两者代码改动量没有差别，但是后者会略微更内聚一些。
+
+我个人认为，备忘录模式也不是最好的方式，其实还有一种更优的方案方式三：
+
+```
+// 方式三
+// 因为功能变更，将RobotBackupInfo更名为RobotReplicator
+public class RobotReplicator {
+	private int state, x, y;
+	
+	// getter和setter
+	
+	public void backup(Robot robot) {
+		this.setState(robot.getState());
+		this.setX(robot.getX());
+		this.setY(robot.getY());
+	}
+	
+	public void recover(Robot robot) {
+		robot.setState(this.getState());
+		robot.setX(this.getX());
+		robot.setY(this.getY());
+	}
+}
+
+public class Robot {
+	private int state, x, y;
+
+	
+	// 其他代码
+	// ...
+}
+
+
+public void test(Robot robot) {
+	RobotReplicator robotReplicator = new RobotReplicator();
+	robotReplicator.backup(robot);
+	// 一些对robot的操作
+	// some code
+	robotReplicator.recover(robot);
+}
+
+```
+这种方式会让备份这个功能更内聚（全部集中到RobotReplicator中）。比如现在要更改备份逻辑：减少y属性的备份。备忘录模式则需要修改Robot和RobotBackupInfo，而这里只需要修改RobotReplicator本身。
+使用方式三在给一个新的对象增加备份功能时，还可以不影响原有代码（Robot对象与最开始相比没有任何变化）。
+而且方式三更容易扩展，比如某天出现一个test1方法也需要备份，但是和test方法中要求的备份逻辑不同，我们可以通过一个BA转换修改为：
+
+```
+public interface RobotReplicator {
+	void backup(Robot robot);
+	void recover(Robot robot);
+}
+
+public class RobotReplicator1 implements RobotReplicator {
+	private int state, x, y;
+	
+	// getter和setter
+	
+	public void backup(Robot robot) {
+		this.setState(robot.getState());
+		this.setX(robot.getX());
+		this.setY(robot.getY());
+	}
+	
+	public void recover(Robot robot) {
+		robot.setState(this.getState());
+		robot.setX(this.getX());
+		robot.setY(this.getY());
+	}
+}
+
+public class RobotReplicator2 implements RobotReplicator {
+	private int state, z;
+	
+	// getter和setter
+	
+	public void backup(Robot robot) {
+		this.setState(robot.getState());
+		this.setZ(robot.getZ());
+	}
+	
+	public void recover(Robot robot) {
+		robot.setState(this.getState());
+		robot.setZ(this.getZ());
+	}
+}
+
+// 调用者
+public void test(Robot robot) {
+	RobotReplicator robotReplicator = new RobotReplicator1();
+	robotReplicator.backup(robot);
+	// 一些对robot的操作
+	// some code
+	robotReplicator.recover(robot);
+}
+
+// 另外一个调用者需要备份state和z属性
+public void test1(Robot robot) {
+	RobotReplicator robotReplicator = new RobotReplicator2();
+	robotReplicator.backup(robot);
+	// 一些对robot的操作
+	// some code
+	robotReplicator.recover(robot);
+}
+```
+
+但是如果是备忘录模式，则很难扩展。当然，代码并非一蹴而就的，我们可以跟随业务的变化随时调整代码。但不管怎样，如果在耗费同样工作量的同时，能更好的兼容一些未来的变化，一定是有利无害的。
+
+回归到本章的需求中，方式一的复制模式，方式一的备忘录模式以及方式三，都能很好的完成，而且三者代码几乎一样，只是备份和复制的逻辑放在何处而已。
+在我们平常工作中，经常忽略的一个问题就是：“一段逻辑应该放在哪里”；
+而最终这段代码放位置，与我们对业务的理解，抽象的理解，单一原则的理解息息相关。方式一的复制模式认为备份恢复是一种通用操作，所以做成了工具方法；备忘录模式将备份和恢复放在Robot中，其实让Robot肩负了机器人本身以及备份恢复两种功能；方式三则认为备份恢复应该独立出去，将行为和属性都封装在了RobotReplicator中。这三种方式在当下并没有对错，只是各人对业务的理解不同而已，但随着业务的发展，总有一种方式最为贴切。
+
+备忘录模式并没有使用BA转换、ACB转换、ABs转换或参数化，它更多地在描述“分”，即“一段逻辑应该放在哪里”，即使最后它也做的不够完美；
+但这种对“一段逻辑应该放在哪里”的思考值得我们每个人去重视和学习。
