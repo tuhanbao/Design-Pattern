@@ -1,0 +1,512 @@
+### 1. 原始场景和代码
+现在存在一些控件类：
+
+```
+// 按钮
+public class Button {
+	private boolean enable;
+	
+	/**
+	 * 按钮点击事件
+	 */
+	public void onClick() {
+		// TODO 
+	}
+	
+	/**
+	 * 设置按钮状态
+	 * @param enable 为false，按钮则置灰，不可点击
+	 */
+	public void setEnable(boolean enable) {
+		this.enable = enable;
+		// 界面置灰
+		// somecode
+	}
+
+	// 按钮相关的一些其他代码，诸如外形，长宽，位置等等
+	// ...
+}
+
+// 输入框
+public class InputBox {
+
+	private boolean editable;
+	
+	/**
+	 * 设置文本框的内容
+	 */
+	public void setText(String text) {
+		// 设置文本框内容的一些处理
+		// some code
+	}
+
+	/**
+	 * 设置文本框状态
+	 * @param editable 设置为false，文本框不可编辑
+	 */
+	public void setEditable(boolean editable) {
+		this.editable = editable;
+		// 文本框置灰
+		// somecode
+	}
+	
+	// 输入框相关的一些其他代码
+	// ...
+}
+
+// 一个简单的文本下拉框
+public class ComboBox {
+	private List<String> list;
+	
+	private boolean editable;
+	
+	private int selectIndex;
+	
+	/**
+	 * 设置下拉框的可选内容
+	 */
+	public void setSelectableList(List<String> list) {
+		// 设置下拉框选项
+		this.list = list;
+		// some code
+	}
+
+	/**
+	 * 设置下拉框状态
+	 * @param editable 设置为false，下拉框不可选择
+	 */
+	public void setEditable(boolean editable) {
+		this.editable = editable;
+		// 下拉框置灰
+		// somecode
+	}
+	
+	/**
+	 * 设置下拉框选中第index个元素
+	 * 如果index为-1，则清空下拉框的选择
+	 */
+	public void setSelectIndex(int index) {
+		this.selectIndex = index;
+		// 根据选择的下标展示相应内容
+		// some code
+	}
+	
+	// 下拉框相关的一些其他代码
+	// ...
+}
+
+```
+
+### 2. 演变过程
+需求一：**现在需要做一个界面，包含一个文本框和按钮，要达到的效果是：只要一点击按钮，文本框就清空。**
+于是，我们无脑的写下了这段代码：
+
+```
+// 按钮
+public class Button {
+	
+	// 增加和修改了如下代码：
+	private InputBox inputBox;
+	
+	public void setInputBox(InputBox inputBox) {
+		this.inputBox = inputBox;
+	}
+	
+	/**
+	 * 按钮点击事件
+	 */
+	public void onClick() {
+		// 清空文本框
+		this.inputBox.setText("");
+	}
+
+
+	// 其他原有代码
+	// ...
+}
+```
+
+那么实现需求一时，我们让界面的代码写成如下的样子：
+```
+public class Pannel {
+	
+	private InputBox inputBox;
+	
+	private Button clearBtn;
+	
+	public void init() {
+		this.inputBox = new InputBox();
+		this.clearBtn = new Button();
+		this.clearBtn.setInputBox(inputBox);
+	}
+}
+```
+
+需求二：**给界面再增加一个下拉框，点击按钮时，还需要同时将下拉框的选择清空；而且以后可能增加其他的控件。**
+这有点像观察者模式了，给Button搞一个监听列表，只要一点击，把所有的监听者都清空：
+
+
+```
+// 按钮
+public class Button {
+	
+	private List<Component> comps;
+	
+	public void addComp(Component comp) {
+		this.comps.add(comp)
+	}
+	
+	/**
+	 * 按钮点击事件
+	 */
+	public void onClick() {
+		// 清空所有控件
+		for (Component comp : comps) {
+			comp.clear();
+		}
+	}
+
+
+	// 其他原有代码
+	// ...
+}
+
+public interface Component {
+	void clear();
+}
+
+// 输入框
+public class InputBox implements Component {
+
+	@Override
+	public void clear() {
+		this.setText("");
+	}
+	
+	// ...
+}
+
+// 文本下拉框
+public class ComboBox implements Component {
+
+	@Override
+	public void clear() {
+		this.setIndex(-1);
+	}
+	
+	// ...
+}
+```
+
+业务代码则改成：
+```
+public class Panel {
+
+	private InputBox inputBox;
+	
+	private ComboBox comboBox;
+	
+	private Button clearBtn;
+	
+	public void init() {
+		this.inputBox = new InputBox();
+		this.comboBox = new ComboBox();
+		this.clearBtn = new Button();
+		this.clearBtn.addComp(inputBox);
+		this.clearBtn.addComp(comboBox);
+	}
+}
+```
+
+需求三：**再给界面增加一个按钮2和文本框2，点击按钮2后让文本框2的内容变成hello。**
+到这里发现观察者不行了，前面Button通知的是InputBox的clear方法，现在新的按钮又要设置为hello。这里无论怎么修改都会比较别扭，最简单的方式是增加一个InputBox的子类：
+```
+// 输入框2
+public class InputBox2 extends InputBox {
+
+	@Override
+	public void clear() {
+		this.setText("hello");
+	}
+	
+	// ...
+}
+```
+业务代码则改成：
+```
+public class Panel {
+
+	private InputBox inputBox1, inputBox2;
+	
+	private ComboBox comboBox;
+	
+	private Button btn1, btn2;
+	
+	public void init() {
+		this.inputBox1 = new InputBox();
+		this.comboBox = new ComboBox();
+		this.inputBox2 = new InputBox2();
+		
+		this.btn1 = new Button();
+		this.btn1.addComp(inputBox1);
+		this.btn1.addComp(comboBox);
+
+		this.btn2 = new Button();
+		this.btn2.addComp(inputBox2);
+	}
+}
+```
+
+但是后面要是再有什么变化，子类可就太多了，于是我们先回滚了需求二的代码，然后决定先搞清楚业务场景。
+我们问了一下客户。客户说，我们要做一些界面，因为业务要求，界面上的的控件之间会有一些关联关系，而这些关联关系他们也不知道有啥规律，总之是由业务决定的；而且以后还会增加更多的其他界面。
+
+从这里我们大概能分析出一些信息：
+1. 界面这件的控件会互相影响，但是影响不可控；
+2. 不同界面的控件大概率不会有关联关系；
+3. 未来还会做其他界面，我们必须保证控件的代码稳定，即Button、InputBox和ComboBox的代码不能依赖界面逻辑。
+
+所以，我们必须把Button的onClick方法写的非常通用，不能受业务逻辑的任何影响，否则一旦界面逻辑变化或者新加一个界面都需要修改控件的代码甚至无法实现。
+而隔离变化是我们一直讨论的事情，要么BA转换要么ACB转换。
+我们这里要做的隔离“onClick函数的内部逻辑”对Button类的影响，需要使用代码级的BA转换，于是将代码改成如下：
+
+```
+// 方式一
+// 按钮
+public class Button {
+	
+	// 增加和修改了如下代码：
+	private C c;
+	
+	public void setC(C c) {
+		this.c = c;
+	}
+	
+	/**
+	 * 按钮点击事件
+	 */
+	public void onClick() {
+		c.onClick();
+	}
+
+
+	// 其他原有代码
+	// ...
+}
+
+public interface C {
+	void onClick();
+}
+
+```
+而实现当前需求，则需要实现两个C即可
+```
+public class C1 implements C {
+	private InputBox inputBox;
+	
+	private ComboBox comboBox;
+	
+	public C1(InputBox inputBox, ComboBox comboBox) {
+		this.inputBox = inputBox;
+		this.comboBox = comboBox;
+	}
+	
+	@Override
+	public void onClick() {
+		inputBox.setText("");
+		comboBox.setIndex(-1);
+	}
+}
+
+public class C2 implements C {
+	private InputBox inputBox;
+	
+	public C2(InputBox inputBox) {
+		this.inputBox = inputBox;
+	}
+	
+	@Override
+	public void onClick() {
+		inputBox.setText("hello");
+	}
+}
+```
+
+业务代码则改成：
+```
+public class Panel {
+
+	private InputBox inputBox1, inputBox2;
+	
+	private ComboBox comboBox;
+	
+	private Button btn1, btn2;
+	
+	public void init() {
+		this.inputBox1 = new InputBox();
+		this.inputBox2 = new InputBox();
+		this.comboBox = new ComboBox();
+		
+		this.btn1 = new Button();
+		this.btn1.setC(new C1(inputBox1, comboBox));
+
+		this.btn2 = new Button();
+		this.btn2.setC(new C2(inputBox2));
+	}
+}
+```
+
+这样Button的代码确实做到永远不会修改了。
+只是如果再发生逻辑变动或添加控件等等，业务代码肯定是必须修改的，而且还需要增加或修改很多的C。
+而这些改动好像又无法避免，都是业务逻辑，完全没有规律，也不知道如何抽象。最简单暴力的方式便是：反正都要改，还不如合在一起改，索性把所有的C都集合在一个地方。
+
+而Panel类持有所有控件的实例，最适合做这个集中的地方。我们可以通过把所有的C都作为Panel的一些内部类来实现代码集中，代码如下：
+```
+// 方式二
+// 增加注解FunctionalInterface，而且把C改个合适的名字，可以让代码更简洁易懂
+@FunctionalInterface
+public interface ActionListener {
+    void action();
+}
+
+
+// 按钮
+public class Button {
+	
+	// 增加和修改了如下代码：
+	private ActionListener actionListener;
+	
+	public void setActionListener(ActionListener actionListener) {
+		this.actionListener = actionListener;
+	}
+	
+	/**
+	 * 按钮点击事件
+	 */
+	public void onClick() {
+		actionListener.action();
+	}
+
+
+	// 其他原有代码
+	// ...
+}
+
+public class Panel {
+	
+	private InputBox inputBox1, inputBox2;
+	private Button btn1, btn2;
+	private ComboBox comboBox;
+	
+
+    public void init() {
+        this.inputBox1 = new InputBox();
+        this.inputBox2 = new InputBox();
+        this.comboBox = new ComboBox();
+
+        this.btn1 = new Button();
+        this.btn1.setActionListener(() -> {
+            inputBox1.setText("");
+            comboBox.setIndex(-1);
+        });
+
+        this.btn2 = new Button();
+        this.btn2.setActionListener(() -> {
+            inputBox2.setText("hello");
+        });
+    }
+	
+}
+
+```
+
+严格来说方式一和方式二一模一样，方式二只是将方式一的C1和C2做成了内部类移到了Panel中。
+后面在修改业务逻辑时，两者代码量并不会差别太多，但即使如此，方式二的代码也会让人维护起来觉得容易很多，正是因为它的改动范围更为集中。
+
+而让这些业务逻辑集中，除了使用内部类，还有一种方式：让Panel类充当所有人的ActionListener。
+这也正是中介者模式的代码模型：
+
+```
+public interface ActionListener {
+	// 为了区别事件来源，需要将button作为参数传入
+    void action(Button btn);
+}
+
+// 按钮
+public class Button {
+	
+	// 增加和修改了如下代码：
+	private ActionListener actionListener;
+	
+	public void setActionListener(ActionListener actionListener) {
+		this.actionListener = actionListener;
+	}
+	
+	/**
+	 * 按钮点击事件
+	 */
+	public void onClick() {
+		actionListener.action(this);
+	}
+
+
+	// 其他原有代码
+	// ...
+}
+
+public class Panel implements ActionListener {
+	
+	private InputBox inputBox1, inputBox2;
+	private Button btn1, btn2;
+	private ComboBox comboBox;
+	
+
+	public void init() {
+		this.inputBox1 = new InputBox();
+		this.inputBox2 = new InputBox();
+		this.comboBox = new ComboBox();
+		
+		this.btn1 = new Button();
+		this.btn2 = new Button();
+		btn1.ActionListener(this);
+		btn2.ActionListener(this);
+	}
+	
+	@Override
+	public void action(Button btn) {
+		if (btn == btn1) {
+			inputBox1.setText("");
+			comboBox.setIndex(-1);
+		} else if (btn == btn2) {
+			inputBox2.setText("hello");
+		}
+	}
+	
+}
+```
+
+中介者模式和方式二在实现上的区别较大，但从本章的应用场景来说两者的实际效果差别不大，都是将不稳定的业务逻辑集中到了一处。
+如果非要分个高低，笔者更倾向于方式二。
+在增加新的控件后，中介者模式需要增加if分支，方式二增加的是内部类，明显后者的耦合性更好。
+
+### 3. 思路扩展
+1. 中介者的核心
+中介者模式有两个核心点：一个是函数级的BA转换；另一个是它将N:N的关系变成了多个N:1的关系；而后者才是中介者模式的灵魂所在。
+这种关系转换使得所有的控件互相解耦，它们之间的关系都由Panel统一管理。这使得增删控件，修改它们之间的关系等业务逻辑都变得格外集中，更容易修改。
+
+2. 孰对孰错
+细心地读者应该发现，中介者模式在与策略者等模式唱反调。
+后者的目的是避免大量的if else，通过函数级的BA转换将分支逻辑转移出去。
+而中介者模式虽然也使用了函数级的BA转换，但是它却将这些不同逻辑又故意揉合到了一个类中。
+
+策略者模式的BA转换保护的是Context类，它将Context类中的if else逻辑抽象为多个Strategy：它的目的保护的是Context类。
+中介者模式的BA转换保护的是Button等控件类，他将Button中不同的业务逻辑抽象为不同的Action：它的目的是保护控件类。
+但是中介者模式最终又祸害了Panel类，根本原因是Panel类是一个极其不稳定的类；客户增加一个新的界面，我们一定会重新写一个Panel，它完全没有复用的价值，也就没有保护的必要。
+这就像我们在很多地方提到的Client角色一样，我们使用的BA转换，ACB转换很多时候它都会成为受害者，但是无关紧要。
+可见，设计并不是一味的追求代码的抽象或优美，而是有选择的保护一些相对稳定的模块或类，让他们得以复用；至于那些承载业务变化点的模块或类，当有必要的时候可以让他们作出一些牺牲。
+
+
+
+
+
+
+

@@ -1,5 +1,5 @@
 ### 1. 原始场景和代码
-先给个很简单的类吧：
+先给个很简单带有3个方法的API类：
 ```
 public class API {
 	public void method1() {
@@ -13,81 +13,69 @@ public class API {
 	public void method3() {
 		// ...
 	}
-	
-	// ...
 }
 ```
 
+另外还有个执行者：
+```
+public class Executor {
+
+}
+```
 
 ### 2. 演变过程
-需求一：**现在有个长官，他现在让我执行method2，再执行method3**
-于是，我提供了一个函数给这个长官下达命令:
+需求一：**假设执行者是一个很特殊的角色，所有想调用API类函数的client角色必须先找它登记，由它统一编排后统一处理。**
+需求一一般在并发编程时比较容易出现，比如API类是一个只能单线程执行的类，client角色只能把要执行的方法告诉一个特定的执行者，由执行者统一安排。
+这其实好比有一个老总，很多员工想要找老总，有的要批材料，有的要签字，有的要报风险；此时执行者就是秘书，你必须先登记，等轮到你的时候才能与老总见面做你想做的事。
+
+既然client不能直接调用方法，那么我们可以用一个数字来代替我们想要的方法，这里有一个很简单的实现方式：
 ```
-// api对象的定义
-private API api = new API();
+// 方式一
+public class Executor {
 
-// 提供给长官的函数
-public void callMe() {
-	api.method1();
-	api.method2();
-}
-
-```
-
-很轻松的完成。
-
-需求二：**长官会随时下达命令，而且我完全不知道他可能会叫我执行什么，反正下达一条命令，执行一个方法。**
-面对这种需求，要么罢工，让长官自己直接调用API方法，想调什么自己选。
-而实际情况是，长官很可能跟我们一样可怜，他也只是在传达别人下发的命令，他一样会面临我们一样的问题。
-对于实际项目而言，长官可能只是一个前端接口，他的上面还有一个超级管理员在界面上一顿操作，谁也不知道他会点哪个按钮，后台代码总有一个地方要响应这些请求。
-
-所以最终还是得我们自己想办法。
-用拍脑袋最简单的方式，我们可以给所有的method编号：1代表method1、2代表method2、3代表method3...；依次类推。我们也给每个按钮编号，点哪个按钮就传按钮的编号过来即可。
-这样设计后，代码就可以改成：
-```
-// api对象的定义
-private API api = new API();
-
-// 提供给长官的函数
-public void callMe(int no) {
-	if (no == 1) {
-		api.method1();
-	} else if (no == 2) {
-		api.method2();
-	} else if (...) {
+	private static final API api = new API();
+	
+	// 要执行的任务列表
+	private List<Integer> taskList;
+	
+	// 预约
+	public void reserve(int no) {
+		taskList.add(no);
 	}
-	...
+	
+	// 统一编排并执行
+	public void start() {
+		// 一些前置处理，比如根据某种业务规则对taskList进行排序；
+		taskList.sort(...);
+		
+		// 依次执行
+		for (int no : taskList) {
+			if (no == 1) {
+				api.method1();
+			} else if (no == 2) {
+				api.method2();
+			} else if (no == 3) {
+				api.method3();
+			}
+		}
+	}
 }
-
 ```
 
-### 3. 思路扩展
-1. 命令模式的本质
-命令模式的本质是将一个对行为进行抽象的过程。如果一门语言直接支持将函数作为对象，是不会有命令模式的用武之地的。
-命令模式使用到的方式是一个基本的BA转换，特殊的是，在命令模式中，B是一个函数，而且有很多不同实现。
-在类似于java的编程语言中，由于语法上的限制，必须将函数上升到类的层次才能进行抽象。
-
-早在代理模式一章中的“顶级抽象”中，我们其实已经详细描述过如果抽象函数，其实已经就有命令模式的代码雏形了。
-
-2. 
-很多著名的网站或大牛在介绍命令模式时，其实没有太讲清楚命令模式的核心。一般演变到需求二的时候，命令模式就出来了；有些甚至直接甩出一堆代码，只说这样扩展性更好。
-设计模式往往会导致代码量增多，而且也因为中间层的增加导致项目的理解难度变大，真的没有必要因为设计模式的高大上就到处面向接口编程。
-我们其实可以尝试一下，在没有需求三，需求四的情况下，使用命令模式会是什么样的情况：
+这种实现方式的弊端就是，当想要给API增加一个新的method时，会增加一个if分支。
+这个问题我们在依赖关系的解耦中有提到过，可以使用一个Map解决这种if分支扩张的问题：
 ```
-// api对象的定义
-private API api = new API();
-
-// 提供给长官的函数
-public void callMe(Command command) {
-	command.call();
-}
-
+// 方式二
 public interface Command {
 	void action();
 }
 
 public class Command1 implements Command {
 	private API api;
+	
+	public Command1(API api) {
+		this.api = api;
+	}
 	
 	@Override
 	public void action() {
@@ -98,6 +86,10 @@ public class Command1 implements Command {
 public class Command2 implements Command {
 	private API api;
 	
+	public Command2(API api) {
+		this.api = api;
+	}
+	
 	@Override
 	public void action() {
 		api.method2();
@@ -107,43 +99,176 @@ public class Command2 implements Command {
 public class Command3 implements Command {
 	private API api;
 	
+	public Command3(API api) {
+		this.api = api;
+	}
+	
 	@Override
 	public void action() {
 		api.method3();
 	}
 }
 
-```
-可是长官该如何拿到Command呢，前端按钮只给了它传了编号。所以这段代码我们得写，放在哪里先不管：
-```
-private static final Map<Integer, Command> commandMap = new HashMap<>();
-static {
-	commandMap.put(1, new Command1());
-	commandMap.put(2, new Command2());
-	commandMap.put(3, new Command3());
+public class Executor {
+
+	private static final API api = new API();
+	
+	private static final Map<Integer, Command> COMMAND_MAP = new HashMap<>();
+	static {
+		COMMAND_MAP.put(1, new Command1(api));
+		COMMAND_MAP.put(2, new Command2(api));
+		COMMAND_MAP.put(3, new Command3(api));
+	}
+	
+	// 要执行的任务列表
+	private List<Integer> taskList;
+	
+	// 预约
+	public void reserve(int no) {
+		taskList.add(no);
+	}
+
+	public static Command getCommand(int no) {
+		return COMMAND_MAP.get(no);
+	}
+	
+	// 统一编排并执行
+	public void start() {
+		// 一些前置处理，比如根据某种业务规则对taskList进行排序；
+		taskList.sort(...);
+		
+		// 依次执行
+		for (int no : taskList) {
+			getCommand(no).action();
+		}
+	}
 	...
 }
 
-public static Command getCommand(int no) {
-	return commandMap.get(no);
-}
+```
 
+之前也讨论过，这种方式缺点是代码变多，类变多，关系会略显复杂；优点是更灵活，扩展性更好，可以运行时配置，而且稍微修改一下还可以与API类解耦：
 ```
-而且既然长官都能自己拿到Command了，也没有必要调用callMe函数多此一举了：
-```
-public class Sir {
-	/**
-	 * 管理员按下按钮
-	 */
-	public void putBtn(int no) {
-		Command command = getCommand(no);
-		// callMe(command) 多此一举，删除;
-		command.action();
+// 方式二改进版
+public class API {
+	private static final API api = new API();
+	static {
+		Executor.register(1, new Command1(api));
+		Executor.register(2, new Command2(api));
+		Executor.register(3, new Command3(api));
+	}
+	
+	public void method1() {
+		// ...
+	}
+
+	public void method2() {
+		// ...
+	}
+	
+	public void method3() {
+		// ...
 	}
 }
+
+public class Executor {
+	
+	private static final Map<Integer, Command> COMMAND_MAP = new HashMap<>();
+	
+	// 要执行的任务列表
+	private List<Integer> taskList;
+	
+	public static void register(int no, Command command) {
+		COMMAND_MAP.put(no, command);
+	}
+	
+	// 预约
+	public void reserve(int no) {
+		taskList.add(no);
+	}
+
+	public static Command getCommand(int no) {
+		return COMMAND_MAP.get(no);
+	}
+	
+	// 统一编排并执行
+	public void start() {
+		// 一些前置处理，比如根据某种业务规则对taskList进行排序；
+		taskList.sort(...);
+		
+		// 依次执行
+		for (int no : taskList) {
+			getCommand(no).action();
+		}
+	}
+	...
+}
 ```
 
-BA转换，主要是为了避免B的变更对A的影响，此时Sir既是A也是client角色，它依赖API的method天经地义，他并不需要我们帮助它隔离API类对它的影响。
-试想，现在要增加Command4。两种方式都得在API类中增加一个method4，前者需要在callMe函数中增加一个if分支，后者需要增加一个Command类，再在commandMap增加一个元素。
+其实从我们当前的业务场景看，很难说这两种方式孰好孰坏。因为我们并不需要运行时配置，Command和编号的关系是死的，不会发生更改；执行者也并不需要与API类解耦，至少在当前场景下，Executor并不需要保护，直接依赖API类并没有明显坏处。
+而大部分场景可能只是给API新增一个方法。此时方式一需要更改API类，Executor类增加一个if分支；方式二需要更改API类，增加一个Command类。代码都在一个模块，改多改少而已。
 
+总体来说，方式一尽管看起来不太高大上，方式二更灵活但又稍显过了；在当前场景下二者整体差别不大。
+
+
+
+需求二：**除了API的方法之外，执行者有可能还会处理其他任务，而且这些函数执行者自己也有可能无法直接调用。**
+增加这条需求后，必须使用方式二了。因为Excutor不能再直接依赖API，它有可能还会接受其他方法的执行。
+比如有个Client角色要调用一个XX函数，先注册再预约就好了。
+```
+public class XXCommand implements Command {
+	@Override
+	public void action() {
+		// 爱写啥写啥
+	}
+}
+
+// client角色的调用代码
+Executor.register(101, new XXCommand());
+Executor executor = ... // 获取Executor实例
+executor.reserve(101);
+```
+如果这种自己生成Command的地方多了，会显得register方法多余：编号要做好管理，不能重复，而且搞不好内存还会撑爆。
+这种情况，执行者可以直接放弃编号和Command的关系管理，直接接受Command参数的预约就好了：
+```
+public class Executor {
+	
+	// 要执行的任务列表
+	private List<Command> taskList;
+	
+	// 预约
+	public void reserve(Command command) {
+		taskList.add(no);
+	}
+	
+	// 统一编排并执行
+	public void start() {
+		// 一些前置处理，比如根据某种业务规则对taskList进行排序；
+		taskList.sort(...);
+		
+		// 依次执行
+		for (Command command : taskList) {
+			command.action();
+		}
+	}
+	...
+}
+```
+
+这种改法，对调用API类的地方有点影响，之前他们可能只需要传一个数字，现在他们可能要新定义一个统一的地方统一获取Command了。
+不过影响还好。
+
+### 3. 思路扩展
+1. 命令模式的本质
+命令模式的本质是将一个对行为进行抽象的过程。如果一门语言直接支持将函数作为对象，很可能就不会有命令模式的用武之地了。
+命令模式使用到的方式是一个基本的BA转换，特殊的是，在命令模式中，B是一个函数，而且有很多不同实现。
+在类似于java的编程语言中，由于语法上的限制，必须将函数上升到类的层次才能进行抽象。
+
+早在代理模式一章中的“顶级抽象”中，我们其实已经详细描述过如果抽象函数，那里就已经有命令模式的代码雏形了。
+
+很多著名的网站或大牛在介绍命令模式时，很多是直接甩出一堆代码，只说这样扩展性更好，而读者看到的是成堆的代码量增加，也不知道使用了命令模式好在了哪里。
+设计模式往往会导致代码量增多，而且也因为中间层的增加导致项目的理解难度变大，真的没有必要因为设计模式的高大上就到处面向接口编程。
+对于像线程池之类的场景，可能会面临各种各样的Command或Runnable，只能选择命令模式类似的代码结构。
+而对于我们自己的一些业务场景，如果没有这么强的业务扩展需求，使用方式一或者方式二对调用者来说可能更方便。
+最终使用哪种代码结构，不是谁更符合设计模式或者接口更多，而是谁更合适。
 
