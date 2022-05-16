@@ -1,0 +1,466 @@
+### 1. 原始场景和代码
+在之前的有些模式中，我们通过抽象将两个个变化因子解耦，可以让一些n*m的复杂关系，变成n+m的关系。
+但现实中仍然存在一些业务场景，无法进行抽象共用。比如现在有一台电脑，一张桌子和一本书，同时还有好学生和贪玩少年两种角色。
+所有的角色都可以使用这些物品，但是使用的方式完全不一样。
+
+使用代码表示则如下：
+```
+public class PlayBoy {
+	// 一些BadBoy相关的代码
+	// ...
+}
+
+public class GoodStudent {
+	// 一些GoodStudent相关的代码
+	// ...
+}
+
+public class Computer {
+    public void useBy(PlayBoy playBoy) {
+		// 玩游戏
+    }
+	
+	public void useBy(GoodStudent goodStudent) {
+        // 学习编程
+    }
+}
+
+public class Desk {
+    public void useBy(PlayBoy playBoy) {
+		// 睡觉
+    }
+	
+	public void useBy(GoodStudent goodStudent) {
+        // 写作业
+    }
+}
+
+public class Book {
+    public void useBy(PlayBoy playBoy) {
+		// 垫桌脚
+    }
+	
+	public void useBy(GoodStudent goodStudent) {
+        // 阅读
+    }
+}
+```
+
+经过前面的学习，我们会先使用BA转换，抽象出物品（Thing）和角色（Role）两个接口，这样可以方便client使用。
+比如有个test1函数和test2函数:
+```
+public void test1(GoodStudent student, Book book) {
+	// 一些前置代码
+	// some code
+	
+	book.userBy(student)
+	
+	// 一些后置代码
+	// some code
+}
+
+public void test2(PlayBoy playBoy, Desk desk) {
+	// 一些前置代码，同test1
+	// some code
+	
+	desk.userBy(playBoy)
+	
+	// 一些后置代码, 同test2
+	// some code
+}
+
+```
+如果增加了抽象，则可以把test1和test2合并成如下：
+```
+public void test(Role role, Thing thing) {
+	// 一些前置代码
+	// some code
+	
+	thing.userBy(role)
+	
+	// 一些后置代码
+	// some code
+}
+
+```
+
+但是，我们发现这种抽象并不能提高我们的扩展性。因为代码变成了如下：
+
+```
+public interface Role {
+}
+
+public interface Thing {
+    void useBy(Role role);
+}
+
+public class PlayBoy implements Role {
+	// 一些BadBoy相关的代码
+	// ...
+}
+
+public class GoodStudent implements Role {
+	// 一些GoodStudent相关的代码
+	// ...
+}
+
+public class Computer implements Thing {
+	// 一些BadBoy相关的代码
+	// ...
+	
+	@Override
+    public void useBy(Role role) {
+		if (role instanceof PlayBoy) {
+            // 玩游戏
+        } else if (role instanceof GoodStudent) {
+            // 学习编程
+        }
+    }
+}
+
+public class Desk implements Thing {
+	@Override
+    public void useBy(Role role) {
+        if (role instanceof PlayBoy) {
+            // 睡觉
+        } else if (role instanceof GoodStudent) {
+            // 写作业
+        }
+    }
+}
+
+public class Book implements Thing {
+	@Override
+    public void useBy(Role role) {
+        if (role instanceof PlayBoy) {
+            // 垫桌脚
+        } else if (role instanceof GoodStudent) {
+            // 阅读
+        }
+    }
+}
+```
+这并没有什么太好的效果，仅仅是从多个userBy函数变成了一个userBy函数的多个分支，从扩展性上看并没有太大区别。
+
+使用抽象，有时候即使不能提高扩展性，但却能因为抽象出来的统一接口让一些代码共用。
+所以，即使有些时候我们很清楚一个地方不可能在发生变化，但是为了抽取公共函数，也会使用BA转换。
+
+
+### 2. 演变过程
+需求一：“假设未来还会增加老师，白领等角色，而且这些角色使用这些物品的方式完全是一些不可预估的行为，我们应该如何改造代码使得维护成本变低？”
+如果继续使用方式一，每增加一个角色，这需要修改每个物品类，需要给每个物品类增加一个useBy方法的if分支：
+
+```
+public class Teacher implements Role {
+	// 一些Teacher相关的代码
+	// ...
+}
+
+public class Computer implements Thing {
+	@Override
+    public void useBy(Role role) {
+        if (role instanceof PlayBoy) {
+            // 玩游戏
+        } else if (role instanceof GoodStudent) {
+            // 学习编程
+        } else if (role instanceof Teacher) {
+			// 编写教案
+		} else if {...) {
+			// ...
+		}
+    }
+}
+
+public class Desk implements Thing {
+	@Override
+    public void useBy(Role role) {
+        if (role instanceof PlayBoy) {
+            // 睡觉
+        } else if (role instanceof GoodStudent) {
+            // 写作业
+        } else if (role instanceof Teacher) {
+			// 改卷子
+		} else if {...) {
+			// ...
+		}
+    }
+}
+
+public class Book implements Thing {
+    // ...省略
+}
+
+// 其他代码同之前
+
+```
+
+在之前的设计模式中有讨论过过，我们可以将这些变动点尽量集中到一个地方去。因为扩展的是Role的实现，那么将业务逻辑转移到Role中就可以了：
+```
+public interface Role {
+	void use(Thing thing);
+}
+
+public class Computer implements Thing {
+	@Override
+    public void useBy(Role role) {
+        role.use(this);
+    }
+}
+
+public class Desk implements Thing {
+	@Override
+    public void useBy(Role role) {
+        role.use(this);
+    }
+}
+
+public class Book implements Thing {
+	@Override
+    public void useBy(Role role) {
+        role.use(this);
+    }
+}
+
+public class PlayBoy implements Role {
+	// 一些BadBoy相关的代码
+	// ...
+	
+	@Override
+	public void use(Thing thing) {
+		if (thing instanceof Computer) {
+			// 玩游戏
+		} else if (thing instanceof Desk) {
+			// 睡觉
+		} else if (thing instanceof Book) {
+			// 垫桌脚
+		}
+	}
+}
+
+public class GoodStudent implements Role {
+	// 一些GoodStudent相关的代码
+	// ...
+	
+	@Override
+	public void use(Thing thing) {
+		if (thing instanceof Computer) {
+			// 学习编程
+		} else if (thing instanceof Desk) {
+			// 写作业
+		} else if (thing instanceof Book) {
+			// 阅读
+		}
+	}
+}
+
+
+// 其他代码同之前
+```
+
+这样，增加老师这种角色，就只需要增加一个类即可：
+
+```
+public class Teacher implements Role {
+	// 一些Teacher相关的代码
+	// ...
+	
+	@Override
+	public void use(Thing thing) {
+		if (thing instanceof Computer) {
+			// 编写教案
+		} else if (thing instanceof Desk) {
+			// 改卷子
+		} else if (thing instanceof Book) {
+			// ...
+		}
+	}
+}
+```
+
+这样转移之后，代码复杂度和代码行数虽然没有变化，但在增加角色时影响范围比以前要好得多：以前需要修改每个物品类，现在是增加一个Role实现类。
+
+上面的代码已经与访问者模式基本相近了，只是GoF中的访问者模式的代码模型将Role的use方法进一步进行了拆解，即将use函数的三个分支，拆成了三个函数：
+```
+public interface Role {
+	void use(Computer computer);
+	void use(Desk desk);
+	void use(Book book);
+}
+
+public class PlayBoy implements Role {
+	// 一些BadBoy相关的代码
+	// ...
+	
+	@Override
+	public void use(Computer computer) {
+		// 玩游戏
+	}
+	
+	@Override
+	public void use(Desk desk) {
+		// 睡觉
+	}
+	
+	@Override
+	public void use(Book book) {
+		// 垫桌脚
+	}
+}
+
+public class GoodStudent implements Role {
+	// 一些GoodStudent相关的代码
+	// ...
+	
+		@Override
+	public void use(Computer computer) {
+		// 学习编程
+	}
+	
+	@Override
+	public void use(Desk desk) {
+		// 写作业
+	}
+	
+	@Override
+	public void use(Book book) {
+		// 阅读
+	}
+}
+
+
+// 其他代码同之前
+```
+
+
+
+### 3. 思路扩展
+1. 为什么原始场景中一开始就将业务逻辑放在了Thing的实现类中，而不是放在Role中？
+
+这个质疑是合理的，既然一开始我们可以把业务逻辑放在Thing中实现，当然也是可以放在Role中的实现的，即原始场景中的初始代码我们有可能写成如下样子：
+```
+public interface Role {
+    void use(Thing thing);
+}
+
+public interface Thing {
+}
+
+public class Computer implements Thing {
+	// 一些Computer相关的代码
+	// ...
+}
+
+public class Desk implements Thing {
+	// 一些Desk相关的代码
+	// ...
+}
+
+public class Book implements Thing {
+	// 一些Book相关的代码
+	// ...
+}
+
+public class PlayBoy implements Role {
+	@Override
+	public void use(Thing thing) {
+		if (thing instanceof Computer) {
+			// 玩游戏
+		} else if (thing instanceof Desk) {
+			// 睡觉
+		} else if (thing instanceof Book) {
+			// 垫桌脚
+		}
+	}
+}
+
+public class GoodStudent implements Role {
+	@Override
+	public void use(Thing thing) {
+		if (thing instanceof Computer) {
+			// 学习编程
+		} else if (thing instanceof Desk) {
+			// 写作业
+		} else if (thing instanceof Book) {
+			// 阅读
+		}
+	}
+}
+```
+
+如果一开始写成这样，好像就没有后面什么事了，甚至还省去了Thing中定义的userBy接口（那个函数最终只是转调了Role的user方法，如果没有特殊需求，可以删除）。
+
+
+确实如此，但是笔者为了完成访问者模式的讲解，我会把需求一变成如下：
+需求一：“假设未来还会增加钢笔，手机等物品，而且这些角色使用这些物品的方式完全是一些不可预估的行为，我们应该如何改造代码使得维护成本变低？”
+这样我们还是不得不使用访问者模式的思路再来一遍，只不过这次抽象的是物品而已，最终还是会落入了笔者的“圈套”：
+```
+public interface Role {
+    void use(Thing thing);
+}
+
+public interface Thing {
+	void useBy(GoodStudent goodStudent);
+	void useBy(PlayBoy playBoy);
+}
+
+
+
+public class PlayBoy implements Role {
+	@Override
+	public void use(Thing thing) {
+		thing.useBy(this)；
+	}
+}
+
+public class GoodStudent implements Role {
+	@Override
+	public void use(Thing thing) {
+		thing.useBy(this)；
+	}
+}
+
+public class Computer implements Thing {
+	@Override
+    public void use(GoodStudent goodStudent) {
+		// 学习编程
+	}
+	
+	@Override
+    public void use(PlayBoy playBoy) {
+		// 玩游戏
+	}
+}
+
+public class Desk implements Thing {
+	@Override
+    public void use(GoodStudent goodStudent) {
+		// 写作业
+	}
+	
+	@Override
+    public void use(PlayBoy playBoy) {
+		// 睡觉
+	}
+}
+
+public class Book implements Thing {
+    // ...省略
+}
+```
+
+可见，如果我们能提前看清楚需求的变化点，一次性把设计作对，是可以节省很多后续的代码量的。但即使我们预估错了需求的变化点，我们也可以通过重构将代码改造成我们想要的样子，这并没有什么大不了，根据业务变化**持续重构**本来就是一件无法避免，也是我们应该长期坚持的事情。
+
+2. 如果角色和物品都会同时扩展该怎么处理？
+我们可以回忆一下之前讲解的如何参数化，以及生成器模式中将多个RobotDirector合一的例子。
+如果我们能寻找到某种方式抽取出角色使用物品的一些共性，则可以很好的解决这个问题。
+
+可是，如果刚好每个角色使用每个物品的方式就是完全不一样，想破脑袋也抽不出任何共性呢，该如何处理？
+笔者也没有办法！而且我可以负责任的告诉你一定不会有任何办法。软件设计的本质是复用，这等同于你告诉我现在有n*m个逻辑处理分支，但是每种逻辑之间不存在任何可复用的地方，神仙也解决不了这种问题。
+但是如果真的出现了这种场景，是值得我们深思的，这很可能是某个产品经理、某个需求分析师或者某个设计师不作为导致的恶果。
+
+技术上解决不了的问题，往往可以从非技术层面解决！
+
+
+
+
+

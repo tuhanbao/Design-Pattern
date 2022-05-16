@@ -1,0 +1,192 @@
+### 1. 原始场景和代码
+模板模式我们可以直接以策略者模式的原始场景：
+模拟一个HR招聘员工的场景，HR主要做三个事情：1. 从招聘渠道获取一个候选人；2.看下这个候选人是否符合条件；3. 如果符合条件则办理入职等后续手续。
+公司的招聘要求呢，也比较简单，只要有高中毕业证就可以。
+使用代码简单描述则是：
+```
+public class HRManager {
+	
+	/**
+     * 招聘一个合格的员工
+     */
+    public Employee recruit() {
+        // 从招聘网站，猎头处获取候选人
+        Person person = getNextPerson();
+        while (person != null) {
+            if (isQualified(person)) {
+                return checkIn(person);
+            }
+            person = getNextPerson();
+        }
+        return null;
+    }
+
+    /**
+     * 从招聘网站，猎头处获取候选人
+     */
+    private Person getNextPerson() {
+		// some code
+        return person;
+    }
+
+    /**
+     * 办理入职等手续，并返回入职成功的员工信息
+     */
+    private Employee checkIn(Person person) {
+		// some code
+        return employee;
+    }
+
+    /**
+     * 检查候选人是否合格
+     */
+    private boolean isQualified(Person person) {
+        // 判断person的学历是否超过或等于高中
+		// some code
+        return isQualified;
+    }
+
+}
+
+```
+
+### 2. 演变过程
+需求的演变我们也直接拷贝策略者模式：
+
+需求一：**公司有个A部门，主要干的是体力活，并不需要学历，只要身体强壮的男性即可。**
+需求二：**随着公司业务的发展和壮大，很多部门都开始有自己的特殊要求，部门B要求招的人必须是计算机软件工程专业，部门C要求必须是985院校....等等**
+
+我们已经知道，可以使用策略者模式实现上面的需求：
+```
+
+public interface RecruitStrategy {
+    boolean isQualified(Person person);
+}
+
+public class HRManager {
+	
+	/**
+     * 招聘一个合格的员工
+     */
+    public Employee recruit(RecruitStrategy strategy) {
+        // 从招聘网站，猎头处获取候选人
+        Person person = getNextPerson();
+        while (person != null) {
+            if (strategy.isQualified(person)) {
+                return checkIn(person);
+            }
+            person = getNextPerson();
+        }
+        return null;
+    }
+
+    /**
+     * 从招聘网站，猎头处获取候选人
+     */
+    private Person getNextPerson() {
+		// some code
+        return person;
+    }
+
+    /**
+     * 办理入职等手续，并返回入职成功的员工信息
+     */
+    private Employee checkIn(Person person) {
+		// some code
+        return employee;
+    }
+
+}
+
+// 只是举例，切勿按照此种方式命名一个类
+public class RecruitStrategy1 implements RecruitStrategy {
+	@Override
+	public boolean isQualified(Person person) {
+		// 判断person是否是20~40岁的健壮男性
+        return isQualified;
+	}
+}
+
+public class RecruitStrategy2 implements RecruitStrategy {
+	@Override
+	public boolean isQualified(Person person) {
+		// 判断person是否是软件工程专业
+        return isQualified;
+	}
+}
+
+// ...
+
+```
+
+但函数级的BA转换并不只有“依赖”或“组合”，还可以使用继承：
+```
+public abstract class HRManager {
+	
+	/**
+     * 招聘一个合格的员工
+     */
+    public Employee recruit() {
+        // 从招聘网站，猎头处获取候选人
+        Person person = getNextPerson();
+        while (person != null) {
+            if (isQualified(person)) {
+                return checkIn(person);
+            }
+            person = getNextPerson();
+        }
+        return null;
+    }
+	
+	public abstract boolean isQualified(Person person);
+
+    /**
+     * 从招聘网站，猎头处获取候选人
+     */
+    private Person getNextPerson() {
+		// some code
+        return person;
+    }
+
+    /**
+     * 办理入职等手续，并返回入职成功的员工信息
+     */
+    private Employee checkIn(Person person) {
+		// some code
+        return employee;
+    }
+
+}
+
+
+public class HRManagerA extends HRManager {
+	@Override
+	public boolean isQualified(Person person) {
+		// 判断person是否是20~40岁的健壮男性
+        return isQualified;
+	}
+}
+
+public class HRManagerB extends HRManager {
+	@Override
+	public boolean isQualified(Person person) {
+		// 判断person是否是软件工程专业
+        return isQualified;
+	}
+}
+
+// ...
+
+```
+上面的代码即是模板模式的代码模型，基本使用了abstract类的地方都有模板模式的影子。
+
+### 3. 思路扩展
+1. 策略者模式的例子使用模板模式并不恰当
+其实策略者模式，状态模式和模板模式的核心都是函数级的BA转换，而且三者使用的方式各不相同，分别为：依赖，组合和继承。
+在“依赖、组合和继承”一章中我们已经详细讨论过这三种关系的区别及优劣。
+在本章中，HR部门是整个公司公用的，招聘策略由部门自己决定，这种场景使用依赖最为合适：因为不同部门可能同时招聘。
+
+但如果将场景改为：整个公司有一个HR总部，总部有一些公共的政策或制度；而每个部门都有自己的HR分部，分部可以在一定权限内做一些自定义：比如制定自己部门的招聘策略。
+此时使用模板模式则更为合理：试想一下，部门A的招聘条件变了，如果使用策略者模式，部门A所有调用HRManager的地方都需要更改；但如果使用模板模式，整个部门使用的是同一个固定的HRManagerA，只需要更改一处即可，调用者毫无影响。
+
+此处沿用策略者模式的例子，是想让大家更清楚地看到，很多设计模式的思路其实是一样的，只是在应用场景下作出的一些依赖关系选择或微小变型。

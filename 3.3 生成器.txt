@@ -795,12 +795,45 @@ public class ComputerBuilder{
 于是在创建一个Computer时，可以写成：Computer computer = new ComputerBuilder().setCpu("因特尔").setRam("三星").setDisplay("三星24寸").setKeyboard("罗技").build();
 好像确实有builder模式的神韵。
 但实际上这种套用代码的方式毫无实际意义。我们在设计时费尽心力引入一个中间类，往往都是为了隔离某种变化（不然，我们多写这些代码岂不是冤枉）。而上面例子，Computer甚至都没有继承一个接口，又哪有变化的可能性，我们完全可以通过一些return this的setter方法就可以搞定。
+```
+public class Computer {
+    private final String cpu;
+    private final String ram;
+    private final String keyboard;
+    private final String display;
 
-> 甚至很多人提到StringBuilder类是builder模式，它除了名字带有Builder，与builder模式没有半毛钱关系，String类稳定的压根不需要隔离
+    public Computer(){
+    }
+	
+	public Computer setCpu(String cpu) {
+        this.cpu = cpu;
+        return this;
+    }
 
-在我看来，生成器模式的两个核心分别是：
+    public Computer setRam(String ram) {
+        this.ram = ram;
+        return this;
+    }
+	
+    public Computer setKeyboard(String keyboard) {
+        this.keyboard = keyboard;
+        return this;
+    }
+	
+    public Computer setDisplay(String display) {
+        this.display = display;
+        return this;
+    }  
+}
+
+// 创建Computer则如下：
+Computer computer = new Computer().setCpu("因特尔").setRam("三星").setDisplay("三星24寸").setKeyboard("罗技");
+```
+在Computer不是一个接口（有多种实现可能）的情况下，不知道引入Builder的意义何在。
+
+笔者认为，生成器模式的两个核心分别是：
 **两个变化因子的分离**
-生成器模式将产品的组成和拼装拆成了完全解耦的两块：Director和Builder，这种思想在任何地方都是可以借鉴的。
+生成器模式将产品的组成和拼装拆成了完全解耦的两块：Director和Builder，这种解耦两个变化因子的思想在任何地方都是可以借鉴的。
 
 **对于千变万化的组成方式，director使用了抽象参数化的方式，仅使用了一个类和一个简洁的函数。**
 标准的生成器模式中我们可以看到Director就是一个具体类，并非接口。这种通过抽象进行参数化的方式往往能节省大量代码，甚至实现一些不可能实现的功能。
@@ -838,6 +871,6 @@ CloseableHttpClient httpClient = HttpClients.custom()
 - 组成方式是多样化，所以我们抽象了一个参数化的方法（Director创建product的方法）；
 
 在所有的设计模式中，这句话都非常有效。当我们发现一个容易发生变化的事务，为了避免其改动影响到使用者，就必须剥离这一类事务的个性。
-设计模式不值得追寻，这句话值得！
+生搬硬套设计模式不值得追寻，但这句话值得！
 
 

@@ -1,0 +1,315 @@
+### 1. 原始场景和代码
+现在我们需要模拟地铁站的闸机。
+假设闸机有三种状态：锁定，打开和关闭。
+地铁站每天会在一定时间段内锁定闸机，此时任何人都没法通过，只有等待5点工作人员解锁闸机后方可使用；
+当闸机解锁后会变成关闭状态，此时刷卡可以让闸机变为打开状态，可以通行；但是一旦通过一人后又会自动变为关闭状态；
+
+使用代码简单粗暴实现则是如下：
+
+```
+public class Gate {
+    private static final int LOCK = -1, OPEN = 1, CLOSE = 0;
+
+    private int state = LOCK;
+
+    public void lock() {
+        if (this.state == LOCK) {
+            prompt("The gate has bean locked.");
+        } else {
+            this.state = LOCK;
+        }
+    }
+
+    public void unlock() {
+        if (this.state == LOCK) {
+            this.state = CLOSE;
+        } else {
+            prompt("The gate do not need unlock.");
+        }
+    }
+
+    public void swipe() {
+        if (this.state == LOCK) {
+            prompt("The gate is locked.");
+        } else if (this.state == OPEN) {
+            prompt("The gate has been opened.");
+        } else {
+            prompt("Please pass quickly.");
+            this.state = OPEN;
+        }
+    }
+
+    public void pass() {
+        if (this.state == LOCK) {
+            prompt("The gate is locked.");
+        } else if (this.state == CLOSE) {
+            prompt("The gate has been closed, no entry.");
+        } else {
+            prompt("The gate is about to close.");
+            this.state = CLOSE;
+        }
+    }
+
+    /**
+     * 提示
+     */
+    private void prompt(String msg) {
+        // ...
+    }
+}
+```
+
+### 2. 演变过程
+需求一：**闸机的状态未来可能还会增加，而且闸机每个状态的逻辑关系会经常变化，希望代码可以更方便维护。**
+这个需求是我强加上去的，讲解状态模式大都会举这种类似的例子。而一般某类事务的状态其实并不经常变化，就固定的几种，即使变化，频率也非常低；但是状态之间的逻辑倒是可能经常变化，如果将所有状态的逻辑揉在一处，有可能不方便维护。
+最直接的解决办法就是去除掉Gate类中的if else，将这些分支逻辑转移出去；我们在函数级的BA转换和策略者模式中都演示过这种代码变换：
+
+```
+
+public interface State {
+    void lock(Gate gate);
+    void unlock(Gate gate);
+    void swipe(Gate gate);
+    void pass(Gate gate);
+}
+
+public class Gate {
+    public static final int LOCK = -1, OPEN = 1, CLOSE = 0;
+
+    private static Map<Integer, State> states = new HashMap<>();
+
+    static {
+        states.put(LOCK, new LockState());
+        states.put(OPEN, new OpenState());
+        states.put(CLOSE, new CloseState());
+    }
+
+    private int state = LOCK;
+
+    public void lock() {
+        getState().lock(this);
+    }
+
+    public void unlock() {
+        getState().unlock(this);
+    }
+
+    public void swipe() {
+        getState().swipe(this);
+    }
+    
+    public void pass() {
+        getState().pass(this);
+    }
+
+    private State getState() {
+        return states.get(this.state);
+    }
+
+    public void setState(int state) {
+        this.state = state;
+    }
+
+    /**
+     * 提示
+     */
+    public static void prompt(String msg) {
+        // ...
+    }
+}
+
+public class CloseState implements State {
+    @Override
+    public void lock(Gate gate) {
+        gate.setState(Gate.LOCK);
+    }
+
+    @Override
+    public void unlock(Gate gate) {
+        gate.prompt("The gate do not need unlock.");
+    }
+
+    @Override
+    public void swipe(Gate gate) {
+        gate.prompt("Please pass quickly.");
+        gate.setState(Gate.OPEN);
+    }
+
+    @Override
+    public void pass(Gate gate) {
+        gate.prompt("The gate has been closed, no entry.");
+    }
+}
+
+public class LockState implements State {
+    @Override
+    public void lock(Gate gate) {
+        gate. prompt("The gate has bean locked.");;
+    }
+
+    @Override
+    public void unlock(Gate gate) {
+        gate.setState(Gate.CLOSE);
+    }
+
+    @Override
+    public void swipe(Gate gate) {
+        gate.prompt("The gate is locked.");
+    }
+
+    @Override
+    public void pass(Gate gate) {
+        gate.prompt("The gate is locked.");
+    }
+}
+
+public class OpenState implements State {
+    @Override
+    public void lock(Gate gate) {
+        gate.setState(Gate.LOCK);
+    }
+
+    @Override
+    public void unlock(Gate gate) {
+        gate.prompt("The gate do not need unlock.");
+    }
+
+    @Override
+    public void swipe(Gate gate) {
+        gate.prompt("The gate has been opened.");
+    }
+
+    @Override
+    public void pass(Gate gate) {
+        gate.prompt("The gate is about to close.");
+        gate.setState(Gate.CLOSE);
+    }
+}
+
+```
+
+这样改造后，将闸机各种状态下的逻辑分散到了各个State的实现类中。
+由于State类可以做成单例，Gate的state属性和State的实现类又一一绑定，所以代码可以再简洁一些：
+```
+public class Gate {
+    public static final State LOCK = new LockState();
+    public static final State OPEN = new OpenState();
+    public static final State CLOSE = new CloseState();
+
+    private State state = LOCK;
+
+    public void lock() {
+        this.state.lock(this);
+    }
+
+    public void unlock() {
+        this.state.unlock(this);
+    }
+
+    public void swipe() {
+        this.state.swipe(this);
+    }
+
+    public void pass() {
+        this.state.pass(this);
+    }
+
+    public void setState(State state) {
+        this.state = state;
+    }
+
+    /**
+     * 提示
+     */
+    public static void prompt(String msg) {
+        // ...
+    }
+}
+
+// 其他类沿用之前代码即可
+// ...
+```
+
+状态模式的代码就完成了。
+本章的举例过于简单，不太容易看出状态模式的效果。一旦Gate的业务逻辑非常庞大，如果不使用状态模式，各种状态和逻辑将会在Gate类中纠缠不清，难以维护。
+
+### 3. 思路扩展
+1. 状态模式并不一定好用
+本章的例子中，如果闸机只是状态经常发生增删，亦或是某个状态的逻辑经常发生变化，使用**状态模式**还是非常划算的：这种只需要增加删除一个状态类，或者修改一个状态类即可。
+但如果闸机的状态和状态的逻辑并不容易变化，而是经常增加一些方法，比如投币功能（和刷卡类似）：
+```
+public void insertCoin() {
+    if (this.state == LOCK) {
+        prompt("The gate is locked.");
+		// 返回硬币
+        returnBackCoint();
+    } else if (this.state == CLOSE) {
+        prompt("The gate has been opened.");
+    } else {
+        prompt("Please pass quickly.");
+        this.state = CLOSE;
+    }
+}
+```
+这种情况反而使用了状态模式会更难维护一些，它需要给每个State的子类增加一个方法。
+不论实际中的应用场景是如何变化的，至少我们自己需要清楚一点，设计是需要跟随我们的应用场景灵活变换的，没有哪种代码一定是完美无缺。
+
+2. 状态模式和策略者模式
+如果我们将状态模式和策略者模式的变化版（见策略者模式的思路扩展：实际工作中的策略者模式）作比对，二者非常相似。
+因为二者的本质都是函数级的BA转换，去除掉函数中的if else分支。
+
+如果仔细一些，我们会发现状态模式和策略者模式的区别其实只在于应用场景上：
+1. 状态模式的State接口方法会多一些，诸如lock、open和close方法；而原始的策略者模式只有一个isQualified方法；
+2. 状态模式的State变换由内部控制；而策略者模式的Strategy变换由外部控制；
+
+所以如果我们在策略者模式变化版的基础上增加如下需求，会发现二者变得一模一样：
+- 入职的流程和type也相关：即不同的招聘要求入职流程不一样；
+- 为了保持人才的多样性，公司不允许部门定制招聘需求，而是以盲盒的方式招人，比如现在招聘了一个type为1的员工，下次则会招聘一个type为2的员工；
+
+那么代码则会修改成：
+```
+public interface RecruitStrategy {
+    boolean isQualified(Person person);
+	
+	Employee checkIn(Person person);
+}
+
+
+public class HRManager {
+	private static Map<Integer, RecruitStrategy> strategys = new HashMap<>();
+	
+	static {
+		strategys.put(1, new RecruitStrategy1());
+		strategys.put(1, new RecruitStrategy2());
+		strategys.put(1, new RecruitStrategy3());
+		...
+	}
+	
+	/**
+     * 招聘一个合格的员工
+     */
+    public Employee recruit(RecruitStrategy strategy) {
+        // 从招聘网站，猎头处获取候选人
+        Person person = getNextPerson();
+        while (person != null) {
+            if (strategy.isQualified(person)) {
+                return strategy.checkIn(person);
+            }
+            person = getNextPerson();
+        }
+        return null;
+    }
+	
+	public static RecruitStrategy getRecruitStrategy(int type) {
+		return strategys.get(type);
+	}
+
+	// ...
+}
+
+```
+
+很明显，此时二者的代码一模一样，仅仅只是名字不同而已：
+// TODO
+
+所以如果我们在理解设计模式时不抓住本质，仅仅在应用场景下作比较，则会有学不完的设计模式，也学不好设计模式。
