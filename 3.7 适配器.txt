@@ -19,25 +19,6 @@ public class XXEncryptor {
 
 ```
 
-由于我们要的是String的加解密，所以我们封装了一个工具类。
-
-```
-public class EncryptUtil {
-	private static final XXEncryptor ENCRYPTOR = new XXEncryptor();
-	
-	public static String encrypt(String msg) {
-		byte[] cipher = ENCRYPTOR.jiami(msg.getBytes());
-		return Base64.encode(cipher);
-	}
-	
-	public static String decrypt(String msg) {
-		byte[] cipher = Base64.decode(msg);
-		return new String(ENCRYPTOR.jiemi(cipher));
-	}
-}
-
-```
-
 
 ### 2. 演变过程
 

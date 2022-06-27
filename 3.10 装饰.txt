@@ -64,7 +64,7 @@ public abstract class AbstractShape implements Shape {
 	}
 	
 	@Override
-	public void drawShowy() {
+	public void draw() {
 		this.style.drawShape();
 		postProcess();
 	}
@@ -163,8 +163,8 @@ public abstract class AbstractShape implements Shape {
 	}
 	
 	@Override
-	public void drawShowy() {
-		this.shape.drawShape();
+	public void draw() {
+		this.shape.draw();
 		postProcess();
 	}
 	
