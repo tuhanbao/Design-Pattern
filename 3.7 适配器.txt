@@ -101,7 +101,7 @@ public class XXEncryptorWrapper extends XXEncryptor implements Encryptor {
 1. 如果没有需求一
 
 其实如果没有需求一，只有需求二的情况下：即我们要的加解密算法本来就是直接操作byte数组的。
-我们会发现代码最终还是会演变成当前的样子：只是少写了一些代码，XXEncryptorWrapper类依然必须存在。
+我们会发现代码最终还是会演变成当前的样子：只是少写了一些代码，XXEncryptorWrapper类依然必须存在，因为我们无法修改XXEncryptor让他实现我们的Encryptor接口。
 ```
 public interface Encryptor {
 	byte[] encrypt(byte[] msg);
